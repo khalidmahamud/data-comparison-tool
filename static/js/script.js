@@ -567,7 +567,32 @@ function setupTextSelection() {
       const selection = window.getSelection();
       selectedText = selection.toString().trim();
 
-      if (selectedText && !document.querySelector(".editable:focus")) {
+      // Check if selection is inside a cell-content element
+      let isInsideCellContent = false;
+
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+
+        // Check if the container or its parent is a cell-content element
+        if (
+          container.nodeType === 1 &&
+          container.classList.contains("cell-content")
+        ) {
+          isInsideCellContent = true;
+        } else if (
+          container.parentElement &&
+          container.parentElement.closest(".cell-content")
+        ) {
+          isInsideCellContent = true;
+        }
+      }
+
+      if (
+        selectedText &&
+        !document.querySelector(".editable:focus") &&
+        isInsideCellContent
+      ) {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
