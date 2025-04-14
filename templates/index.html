@@ -245,40 +245,42 @@
         <!-- Change Filter Section -->
         {% if change_col_exists %}
         <div class="sidebar-section filter-section">
-            <h4>'Change' Column Filter</h4>
             <form action="/" method="get" id="filter-form">
                 <!-- Hidden inputs to preserve pagination/rows state -->
                 <input type="hidden" name="page" value="1">
                 <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
 
-                <div class="filter-item switch-item">
+                <div class="filter-header">
+                    <h4>Filter By Percentage</h4>
                     <label class="switch">
                         <input type="checkbox" name="filter_change_enabled" value="on" {% if filter_change_enabled %}checked{% endif %}>
                         <span class="slider round"></span>
                     </label>
-                    <span class="option-label">Enable Filter</span>
                 </div>
                 <div class="filter-item">
-                    <label for="filter-change-input">Show rows where 'change' ></label>
+                    <label for="filter-change-input">Greater Than ></label>
                     <input type="text" step="any" name="filter_change_value" id="filter-change-input" value="{{ filter_change_value }}" placeholder="e.g., 10">
                 </div>
                 <div class="filter-item">
-                    <label for="filter-change-lt-input">Show rows where 'change' <</label>
+                    <label for="filter-change-lt-input">Less Than <</label>
                     <input type="text" step="any" name="filter_change_lt_value" id="filter-change-lt-input" value="{{ filter_change_lt_value }}" placeholder="e.g., 5">
                 </div>
                 <div class="filter-item range-filter">
-                    <label for="filter-change-from-input">Show rows where 'change' is between</label>
+                    <label for="filter-change-from-input">Between</label>
                     <input type="text" step="any" name="filter_change_from_value" id="filter-change-from-input" value="{{ filter_change_from_value }}" placeholder="From">
                     <span class="range-separator">and</span>
                     <input type="text" step="any" name="filter_change_to_value" id="filter-change-to-input" value="{{ filter_change_to_value }}" placeholder="To">
                 </div>
-                <button type="submit" class="btn-apply-filter">Apply Filter</button>
+                <div class="filter-buttons">
+                    <button type="submit" class="btn-apply-filter">Apply Filter</button>
+                    <button type="button" onclick="clearFilter()" class="clear-filter-btn">Clear</button>
+                </div>
             </form>
         </div>
         <hr>
         <!-- Color Filter Section -->
         <div class="sidebar-section filter-section">
-            <h4>Cell Color Filter</h4>
+            <h4>Color Filter</h4>
             <form action="/" method="get" id="color-filter-form">
                 <!-- Hidden inputs to preserve pagination/rows state -->
                 <input type="hidden" name="page" value="1">
@@ -292,7 +294,7 @@
                     <input type="hidden" name="filter_change_to_value" value="{{ filter_change_to_value }}">
                 {% endif %}
                 <div class="filter-item">
-                    <label for="filter-color-a">Column A Color:</label>
+                    <label for="filter-color-a" style="margin-right: 80px;">Column A</label>
                     <select name="filter_color_a" id="filter-color-a" class="filter-select">
                         <option value="any" {% if filter_color_a == 'any' %}selected{% endif %}>Any Color</option>
                         <option value="none" {% if filter_color_a == 'none' %}selected{% endif %}>No Color</option>
@@ -302,7 +304,7 @@
                     </select>
                 </div>
                 <div class="filter-item">
-                    <label for="filter-color-b">Column B Color:</label>
+                    <label for="filter-color-b" style="margin-right: 80px;">Column B</label>
                     <select name="filter_color_b" id="filter-color-b" class="filter-select">
                         <option value="any" {% if filter_color_b == 'any' %}selected{% endif %}>Any Color</option>
                         <option value="none" {% if filter_color_b == 'none' %}selected{% endif %}>No Color</option>
@@ -325,5 +327,35 @@
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <script>
+        // Function to clear the filter form
+        function clearFilter() {
+            const form = document.getElementById('filter-form');
+            if (form) {
+                // Uncheck the enable filter checkbox
+                const enableCheckbox = document.getElementById('filter-change-enabled');
+                if (enableCheckbox) {
+                    enableCheckbox.checked = false;
+                }
+                // Reset other filter fields (add more if needed)
+                const changeValueInput = form.querySelector('input[name="filter_change_value"]');
+                if (changeValueInput) changeValueInput.value = '';
+                const changeLtInput = form.querySelector('input[name="filter_change_lt_value"]');
+                if (changeLtInput) changeLtInput.value = '';
+                const changeFromInput = form.querySelector('input[name="filter_change_from_value"]');
+                if (changeFromInput) changeFromInput.value = ''; 
+                const changeToInput = form.querySelector('input[name="filter_change_to_value"]');
+                if (changeToInput) changeToInput.value = '';
+                const colorASelect = form.querySelector('select[name="filter_color_a"]');
+                if (colorASelect) colorASelect.value = 'any';
+                const colorBSelect = form.querySelector('select[name="filter_color_b"]');
+                if (colorBSelect) colorBSelect.value = 'any';
+                
+                // Submit the form to apply cleared filters
+                form.submit();
+            }
+        }
+    </script>
 </body>
 </html>

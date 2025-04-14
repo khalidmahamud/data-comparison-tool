@@ -1170,7 +1170,6 @@ h3 {
 
 /* Filter Section Layout */
 .sidebar-section.filter-section h4 {
-  margin-bottom: 20px;
   font-weight: 500;
 }
 
@@ -1318,6 +1317,7 @@ input:checked + .slider:before {
 }
 
 /* Apply Filter Button Refined */
+.clear-filter-btn,
 .btn-apply-filter {
   background-color: #6079e3;
   color: white;
@@ -1532,4 +1532,56 @@ input:checked + .slider:before {
 
 [data-theme="dark"] .toggle-arabic-btn:hover {
   color: #ffffff;
+}
+
+.filter-buttons .btn-apply-filter,
+.filter-buttons .clear-filter-btn {
+  flex: 1; /* Make both buttons take equal space */
+}
+
+.clear-filter-btn {
+  background-color: #d63031 !important;
+}
+
+.clear-filter-btn:hover {
+  background-color: #b71c1c !important;
+  transform: translateY(-1px);
+}
+
+.clear-filter-btn:active {
+  transform: translateY(0);
+}
+
+/* Filter Header Layout with Toggle Switch */
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.filter-header h4 {
+  margin: 0;
+  padding: 0;
+  color: #3bb2ff;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.filter-header .switch {
+  margin: 0;
+}
+
+/* new filter */
+.sidebar-section.filter-section h4 {
+  font-weight: 700;
+  color: #3bb2ff;
+  font-size: 17px;
+}
+
+/* Filter Styles Enhanced */
+.filter-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
 }
