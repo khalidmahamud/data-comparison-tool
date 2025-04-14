@@ -1,0 +1,11 @@
+Main Arabic Hadis r Onubad Dilam
+
+- Onubader moddhe sonod ta bad disi, so sonod check korar dorkar nai.Main hadith ta check korba only.
+- Now onubad same rekhe arabic er sathe match kore onubad/banan/missing etc kono problem thakle fix kore dao
+- Strictly main onubad same rakhte hobe, only corrected onubad ta dao, extra kono text diba na
+- Kothao (আরবি) lekha pele just keep it no change needed. dont give arabics by yourself.
+- Also oprocholito bangla banan gulao fix korba like ওয়াহী > ওহী, ফিরিশতা > ফেরেশতা etc.
+- STRICTLY (সাল্লাল্লাহু 'আলাইহি ওয়া সাল্লাম), (রাঃ) ei types word gula change korba na
+- Also songjukto vul banan gulo fix korba ex: কাফ্ফারা > কাফ্‌ফারা, আম্র > আম্‌র etc.
+- Sahabider namer banan vul thakle fix korba
+- Strictly extra kono text diba na 

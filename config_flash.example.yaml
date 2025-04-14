@@ -1,0 +1,25 @@
+processing:
+  batch_size: 5
+  max_retries: 3
+  retry_delay: 0
+  save_interval: 5
+  start_row: 0
+
+api_settings:
+  gemini_flash_1:
+    api_key: "YOUR_API_KEY_HERE"
+    model: "gemini-2.0-flash"
+    max_tokens: 8192
+  # gemini_flash_2:
+  #   api_key: 'YOUR_API_KEY_2'
+  #   model: 'gemini-2.0-flash'
+  #   max_tokens: 8192
+  # gemini_flash_3:
+  #   api_key: 'YOUR_API_KEY_3'
+  #   model: 'gemini-2.0-flash'
+  #   max_tokens: 8192
+
+file_settings:
+  input_file: "input-ist.xlsx"
+  output_file: "input-ist.xlsx"
+  prompts_file: "prompts.txt"

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hadith Text Comparison Tool</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/svg+xml">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Toggle Button moved here -->
+        <button id="sidebar-toggle" class="sidebar-toggle-btn" title="Settings">
+            <i class="material-icons">settings</i>
+        </button>
+        <h1>Hadith Text Comparison Tool</h1>
+     
+        <div class="controls">
+            <div>
+                <form action="/" method="get" id="rows-form">
+                    <!-- Include hidden filter params if this form is separate -->
+                    {% if filter_change_enabled %}
+                        <input type="hidden" name="filter_change_enabled" value="on">
+                        <input type="hidden" name="filter_change_value" value="{{ filter_change_value }}">
+                        <input type="hidden" name="filter_change_lt_value" value="{{ filter_change_lt_value }}">
+                        <input type="hidden" name="filter_change_from_value" value="{{ filter_change_from_value }}">
+                        <input type="hidden" name="filter_change_to_value" value="{{ filter_change_to_value }}">
+                    {% endif %}
+                    {% if filter_color_a != 'any' %}
+                        <input type="hidden" name="filter_color_a" value="{{ filter_color_a }}">
+                    {% endif %}
+                    {% if filter_color_b != 'any' %}
+                        <input type="hidden" name="filter_color_b" value="{{ filter_color_b }}">
+                    {% endif %}
+                    <input type="hidden" name="page" value="1"> <!-- Go to page 1 when changing rows -->
+                    <label for="rows_per_page">Rows per page:</label>
+                    <select name="rows_per_page" id="rows_per_page" onchange="this.form.submit()">
+                        <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="50" {% if rows_per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if rows_per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                </form>
+            </div>
+            <div class="info">
+                {% if total_rows > 0 %}
+                    Showing {{ (current_page - 1) * rows_per_page + 1 }} to 
+                    {{ [current_page * rows_per_page, total_rows] | min }} of {{ total_rows }} rows
+                {% endif %}
+            </div>
+        </div>
+
+        {% if data %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Column A</th>
+                        <th>Column B</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in data %}
+                        <tr>
+                            <td>{{ item.id }}</td>
+                            <td class="{{ item.status }} {% if item.col_a_approved %}{% if item.col_a_type == 'green' %}approved{% elif item.col_a_type == 'yellow' %}yellow-approved{% elif item.col_a_type == 'red' %}red-approved{% endif %}{% endif %}">
+                                <div class="cell-container">
+                                    <div class="cell-content" data-row="{{ item.row_idx }}">
+                                        {% if item.status == 'different' %}{{ item.highlighted_a | safe }}{% else %}{{ item.col_a | replace('\n', '<br>') | safe }}{% endif %}
+                                    </div>
+                                    <div class="action-buttons-container">
+                                        <div class="action-buttons">
+                                            <form action="/approve" method="post">
+                                                <input type="hidden" name="row_idx" value="{{ item.row_idx }}">
+                                                <input type="hidden" name="column" value="a">
+                                                <input type="hidden" name="page" value="{{ current_page }}">
+                                                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                                                <input type="hidden" name="approval_type" value="green">
+                                                <button type="submit" class="tick-btn" title="Approve this cell">
+                                                    <i class="material-icons">check_circle</i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="{{ item.status }} {% if item.col_b_approved %}{% if item.col_b_type == 'green' %}approved{% elif item.col_b_type == 'yellow' %}yellow-approved{% elif item.col_b_type == 'red' %}red-approved{% endif %}{% endif %}">
+                                <div class="cell-container">
+                                    <div class="cell-content" data-row="{{ item.row_idx }}">
+                                        {% if item.status == 'different' %}{{ item.highlighted_b | safe }}{% else %}{{ item.col_b | replace('\n', '<br>') | safe }}{% endif %}
+                                    </div>
+                                    <textarea class="editable" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}">{{ item.col_b }}</textarea>
+                                    <div class="action-buttons-container">
+                                        <div class="action-buttons">
+                                            <button class="save-btn" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" style="display:none;" title="Save changes">
+                                                <i class="material-icons">save</i>
+                                            </button>
+                                            <button class="edit-btn" data-row="{{ item.row_idx }}" data-text="{{ item.col_b|replace('\n', ' ')|e }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" title="Edit this cell">
+                                                <i class="material-icons">edit</i>
+                                            </button>
+                                            <form action="/approve" method="post">
+                                                <input type="hidden" name="row_idx" value="{{ item.row_idx }}">
+                                                <input type="hidden" name="column" value="b">
+                                                <input type="hidden" name="page" value="{{ current_page }}">
+                                                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                                                <input type="hidden" name="approval_type" value="green">
+                                                <button type="submit" class="tick-btn" title="Green approve">
+                                                    <i class="material-icons">check_circle</i>
+                                                </button>
+                                            </form>
+                                            <form action="/approve" method="post">
+                                                <input type="hidden" name="row_idx" value="{{ item.row_idx }}">
+                                                <input type="hidden" name="column" value="b">
+                                                <input type="hidden" name="page" value="{{ current_page }}">
+                                                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                                                <input type="hidden" name="approval_type" value="yellow">
+                                                <button type="submit" class="yellow-tick-btn" title="Yellow approve">
+                                                    <i class="material-icons">check_circle</i>
+                                                </button>
+                                            </form>
+                                            <form action="/approve" method="post">
+                                                <input type="hidden" name="row_idx" value="{{ item.row_idx }}">
+                                                <input type="hidden" name="column" value="b">
+                                                <input type="hidden" name="page" value="{{ current_page }}">
+                                                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                                                <input type="hidden" name="approval_type" value="red">
+                                                <button type="submit" class="red-tick-btn" title="Red approve">
+                                                    <i class="material-icons">check_circle</i>
+                                                </button>
+                                            </form>
+                                            <form action="/reset_cell" method="post">
+                                                <input type="hidden" name="row_idx" value="{{ item.row_idx }}">
+                                                <input type="hidden" name="column" value="b">
+                                                <input type="hidden" name="page" value="{{ current_page }}">
+                                                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                                                <button type="submit" class="reset-btn" title="Reset approval">
+                                                    <i class="material-icons">cancel</i>
+                                                </button>
+                                            </form>
+                                            <button class="generate-btn" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" title="Regenerate with API">
+                                                <i class="material-icons">offline_bolt</i>
+                                            </button>
+                                            <button class="comment-btn" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" title="Add Comment">
+                                                <i class="material-icons">comment</i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% if total_pages > 1 %}
+                <div class="pagination">
+                    {% if current_page > 1 %}
+                        {% set page_1_params = query_params.copy() %}
+                        {% set _ = page_1_params.update({'page': 1}) %}
+                        <a href="?{{ urlencode(page_1_params) }}">« First</a>
+
+                        {% set prev_params = query_params.copy() %}
+                        {% set _ = prev_params.update({'page': current_page - 1}) %}
+                        <a href="?{{ urlencode(prev_params) }}">Previous</a>
+                    {% endif %}
+                    
+                    {% set start_page = [1, current_page - 2] | max %}
+                    {% set end_page = [total_pages + 1, current_page + 3] | min %}
+                    {% for p in range(start_page, end_page) %}
+                        {% if p == current_page %}
+                            <span class="active">{{ p }}</span>
+                        {% else %}
+                            {% set page_p_params = query_params.copy() %}
+                            {% set _ = page_p_params.update({'page': p}) %}
+                            <a href="?{{ urlencode(page_p_params) }}">{{ p }}</a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if current_page < total_pages %}
+                        {% set next_params = query_params.copy() %}
+                        {% set _ = next_params.update({'page': current_page + 1}) %}
+                        <a href="?{{ urlencode(next_params) }}">Next</a>
+
+                        {% set last_params = query_params.copy() %}
+                        {% set _ = last_params.update({'page': total_pages}) %}
+                        <a href="?{{ urlencode(last_params) }}">Last »</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="no-data">
+                <p>No data available. Please ensure 'input.xlsx' file exists in the application directory with a 'hadith' sheet containing columns 'hadith_details' and 'analysis-3'.</p>
+                <p>All approvals are stored as colored cells directly in the Excel file.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Add this notification div before the closing body tag -->
+    <div id="notification" class="notification">Cell approved successfully!</div>
+
+    <!-- Comment Modal -->
+    <div id="commentModal" class="comment-modal">
+        <div class="comment-modal-content">
+            <span class="close-comment">&times;</span>
+            <h3>Add Comment</h3>
+            <textarea id="commentText" class="comment-textarea" placeholder="Enter your comment here..."></textarea>
+            <input type="hidden" id="commentRowIdx" value="">
+            <input type="hidden" id="commentPage" value="">
+            <input type="hidden" id="commentRowsPerPage" value="">
+            <div class="comment-buttons">
+                <button id="commentCancelBtn" class="comment-cancel-btn">Cancel</button>
+                <button id="commentSaveBtn" class="comment-save-btn">Save Comment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Replace context menu with a floating save button -->
+    <div id="selectionButton" style="display: none; position: absolute; z-index: 1000;">
+        <i class="material-icons">add_circle</i>
+        Add Selection
+    </div>
+
+    <!-- Add sidebar HTML structure -->
+    <div id="settings-sidebar" class="sidebar">
+        <button id="sidebar-close" class="sidebar-close-btn">×</button>
+        <h3>Settings</h3>
+        <hr>
+        <!-- Theme Switch -->
+        <div class="sidebar-section theme-section">
+             <span class="section-title">Display Theme</span>
+             <div class="theme-switch-wrapper">
+                 <label class="switch" for="checkbox">
+                     <input type="checkbox" id="checkbox" />
+                     <span class="slider round"></span>
+                 </label>
+             </div>
+        </div>
+        <hr>
+        <!-- Change Filter Section -->
+        {% if change_col_exists %}
+        <div class="sidebar-section filter-section">
+            <h4>'Change' Column Filter</h4>
+            <form action="/" method="get" id="filter-form">
+                <!-- Hidden inputs to preserve pagination/rows state -->
+                <input type="hidden" name="page" value="1">
+                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+
+                <div class="filter-item switch-item">
+                    <label class="switch">
+                        <input type="checkbox" name="filter_change_enabled" value="on" {% if filter_change_enabled %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="option-label">Enable Filter</span>
+                </div>
+                <div class="filter-item">
+                    <label for="filter-change-input">Show rows where 'change' ></label>
+                    <input type="text" step="any" name="filter_change_value" id="filter-change-input" value="{{ filter_change_value }}" placeholder="e.g., 10">
+                </div>
+                <div class="filter-item">
+                    <label for="filter-change-lt-input">Show rows where 'change' <</label>
+                    <input type="text" step="any" name="filter_change_lt_value" id="filter-change-lt-input" value="{{ filter_change_lt_value }}" placeholder="e.g., 5">
+                </div>
+                <div class="filter-item range-filter">
+                    <label for="filter-change-from-input">Show rows where 'change' is between</label>
+                    <input type="text" step="any" name="filter_change_from_value" id="filter-change-from-input" value="{{ filter_change_from_value }}" placeholder="From">
+                    <span class="range-separator">and</span>
+                    <input type="text" step="any" name="filter_change_to_value" id="filter-change-to-input" value="{{ filter_change_to_value }}" placeholder="To">
+                </div>
+                <button type="submit" class="btn-apply-filter">Apply Filter</button>
+            </form>
+        </div>
+        <hr>
+        <!-- Color Filter Section -->
+        <div class="sidebar-section filter-section">
+            <h4>Cell Color Filter</h4>
+            <form action="/" method="get" id="color-filter-form">
+                <!-- Hidden inputs to preserve pagination/rows state -->
+                <input type="hidden" name="page" value="1">
+                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                <!-- Preserve change filters if enabled -->
+                {% if filter_change_enabled %}
+                    <input type="hidden" name="filter_change_enabled" value="on">
+                    <input type="hidden" name="filter_change_value" value="{{ filter_change_value }}">
+                    <input type="hidden" name="filter_change_lt_value" value="{{ filter_change_lt_value }}">
+                    <input type="hidden" name="filter_change_from_value" value="{{ filter_change_from_value }}">
+                    <input type="hidden" name="filter_change_to_value" value="{{ filter_change_to_value }}">
+                {% endif %}
+                <div class="filter-item">
+                    <label for="filter-color-a">Column A Color:</label>
+                    <select name="filter_color_a" id="filter-color-a" class="filter-select">
+                        <option value="any" {% if filter_color_a == 'any' %}selected{% endif %}>Any Color</option>
+                        <option value="none" {% if filter_color_a == 'none' %}selected{% endif %}>No Color</option>
+                        <option value="green" {% if filter_color_a == 'green' %}selected{% endif %}>Green</option>
+                        <option value="red" {% if filter_color_a == 'red' %}selected{% endif %}>Red</option>
+                        <option value="yellow" {% if filter_color_a == 'yellow' %}selected{% endif %}>Yellow</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label for="filter-color-b">Column B Color:</label>
+                    <select name="filter_color_b" id="filter-color-b" class="filter-select">
+                        <option value="any" {% if filter_color_b == 'any' %}selected{% endif %}>Any Color</option>
+                        <option value="none" {% if filter_color_b == 'none' %}selected{% endif %}>No Color</option>
+                        <option value="green" {% if filter_color_b == 'green' %}selected{% endif %}>Green</option>
+                        <option value="red" {% if filter_color_b == 'red' %}selected{% endif %}>Red</option>
+                        <option value="yellow" {% if filter_color_b == 'yellow' %}selected{% endif %}>Yellow</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-apply-filter">Apply Filter</button>
+            </form>
+        </div>
+        <hr>
+        {% else %}
+         <div class="sidebar-section filter-section">
+            <p><i>'change' column not found in Excel sheet. Filter unavailable.</i></p>
+         </div>
+         <hr>
+        {% endif %}
+    </div>
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
