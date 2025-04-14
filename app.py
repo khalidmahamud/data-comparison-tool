@@ -637,6 +637,89 @@ def save_comment():
         return jsonify({'status': 'success', 'message': 'Comment saved successfully'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
+    
+
+@app.route('/get_arabic_text', methods=['GET'])
+def get_arabic_text():
+    try:
+        row_idx = request.args.get('row_idx')
+        
+        if not row_idx:
+            return jsonify({'status': 'error', 'message': 'Row index is required'})
+        
+        input_file = get_input_file_path()
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Input file not found'})
+        
+        try:
+            # Read the Excel file
+            xls = pd.ExcelFile(input_file, engine='openpyxl')
+            sheet_name = 'hadith' if 'hadith' in xls.sheet_names else xls.sheet_names[0]
+            df = pd.read_excel(xls, sheet_name=sheet_name)
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': f'Error reading Excel file: {str(e)}'})
+        
+        # Check for Arabic column in order of preference
+        arabic_column = None
+        
+        # First check for exact column name
+        if 'arabic_text' in df.columns:
+            arabic_column = 'arabic_text'
+        elif 'hadith_arabic' in df.columns:
+            arabic_column = 'hadith_arabic'
+        else:
+            # Fallback to any column with 'arabic' in the name
+            for col in df.columns:
+                if 'arabic' in str(col).lower():
+                    arabic_column = col
+                    break
+        
+        # If still no Arabic column found, return an error
+        if arabic_column is None:
+            return jsonify({
+                'status': 'error', 
+                'message': 'No Arabic text column found. Available columns: ' + ', '.join(df.columns)
+            })
+        
+        # Convert row_idx to integer
+        try:
+            row_idx = int(row_idx)
+            
+            # Directly use the row index as provided (excel row number - 2)
+            df_row_idx = row_idx - 2
+            
+            print(f"Requested row: {row_idx}, DataFrame index: {df_row_idx}, Max rows: {len(df)}")
+            
+            if df_row_idx < 0 or df_row_idx >= len(df):
+                return jsonify({
+                    'status': 'error', 
+                    'message': f'Row index {row_idx} out of range (should be between 2 and {len(df)+1})'
+                })
+            
+            # Get the Arabic text from the row
+            arabic_text = df.iloc[df_row_idx][arabic_column]
+            
+            # Handle NaN or None values
+            if pd.isna(arabic_text):
+                arabic_text = "لا يوجد نص عربي" # "No Arabic text available" in Arabic
+            else:
+                arabic_text = str(arabic_text)
+            
+            return jsonify({
+                'status': 'success',
+                'arabic_text': arabic_text,
+                'row_used': row_idx
+            })
+            
+        except ValueError:
+            return jsonify({'status': 'error', 'message': f'Invalid row index: {row_idx}'})
+        
+    except Exception as e:
+        import traceback
+        print(f"Error retrieving Arabic text: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': str(e)})
+
 
 @app.context_processor
 def utility_processor():
