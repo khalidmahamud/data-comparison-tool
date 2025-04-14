@@ -83,6 +83,19 @@
                                                 </button>
                                             </form>
 
+
+                                            <form action="/reset_cell" method="post">
+                                                <input type="hidden" name="row_idx" value="{{ item.row_idx }}">
+                                                <input type="hidden" name="column" value="a">
+                                                <input type="hidden" name="page" value="{{ current_page }}">
+                                                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                                                <button type="submit" class="reset-btn" title="Reset approval">
+                                                    <i class="material-icons">cancel</i>
+                                                </button>
+                                            </form>
+
+
+
                                             <button class="toggle-arabic-btn" data-row="{{ item.row_idx }}" title="Toggle Arabic Text">
                                                 <i class="material-icons">translate</i>
                                             </button>
