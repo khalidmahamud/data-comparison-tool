@@ -2,12 +2,12 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 import pandas as pd, math, os, difflib, re
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-from regenerate import TextRegenerator
 from openpyxl.utils import get_column_letter
 from urllib.parse import urlencode
 import uuid
 import yaml
 from pathlib import Path
+from generate_cell import generate
 
 app = Flask(__name__)
 
@@ -524,8 +524,8 @@ def preview_diff():
 def regenerate_cell():
     row_idx = request.form.get('row_idx', type=int)
     try:
-        regenerator = TextRegenerator(config_path='config_flash.yaml')
-        new_text, original_text = regenerator.regenerate_text(row_idx)
+        new_text = generate(row_idx).strip()
+
 
         input_file = get_input_file_path()
         if not os.path.exists(input_file):
