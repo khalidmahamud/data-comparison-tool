@@ -180,6 +180,37 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
         if len(df.columns) >= 2: df = df.rename(columns={df.columns[0]: 'hadith_details', df.columns[1]: 'analysis-3'})
         else: return [], 0, 0, False
 
+    if 'ratio' not in df.columns:
+        df['ratio'] = df.apply(lambda row: difflib.SequenceMatcher(
+            None, 
+            extract_standard_letters(str(row['hadith_details']) if pd.notna(row['hadith_details']) else ""),
+            extract_standard_letters(str(row['analysis-3']) if pd.notna(row['analysis-3']) else ""),
+            autojunk=False
+        ).ratio() * 100, axis=1)
+        
+        # Save the ratio column back to Excel file while preserving formatting
+        try:
+            wb = load_workbook(input_file)
+            if 'hadith' not in wb.sheetnames:
+                print("Warning: 'hadith' sheet not found in Excel file")
+            else:
+                ws = wb['hadith']
+                
+                # Find the last column index
+                last_col_idx = len(next(ws.rows))
+                ratio_col_letter = get_column_letter(last_col_idx + 1)
+                
+                # Add ratio header
+                ws[f'{ratio_col_letter}1'] = 'ratio'
+                
+                # Add ratio values for each row
+                for idx, ratio in enumerate(df['ratio'], start=2):
+                    ws[f'{ratio_col_letter}{idx}'] = ratio
+                
+                wb.save(input_file)
+        except Exception as e:
+            print(f"Warning: Could not save ratio column to Excel file: {e}")
+
     number_col_exists = 'number' in df.columns # Check if 'number' column exists
 
     if 'change' in df.columns:
@@ -280,7 +311,8 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
             'col_a': col_a if not pd.isna(col_a) else "", 'col_b': col_b if not pd.isna(col_b) else "",
             'highlighted_a': highlighted_a, 'highlighted_b': highlighted_b, 'status': status,
             'col_a_approved': row_approval['col_a'], 'col_b_approved': row_approval['col_b'],
-            'col_a_type': row_approval['col_a_type'], 'col_b_type': row_approval['col_b_type']
+            'col_a_type': row_approval['col_a_type'], 'col_b_type': row_approval['col_b_type'],
+            'ratio': row['ratio'] if 'ratio' in row else None
         })
 
     return result, total_pages, total_rows, change_col_exists

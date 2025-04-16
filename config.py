@@ -42,7 +42,6 @@ def load_config(config_path: str) -> Optional[Config]:
     
     with config_path.open('r') as f:
         config_dict = yaml.safe_load(f)
-    print(config_dict)
     return Config(
         processing=ProcessingConfig(**config_dict['processing']),
         api_settings={
