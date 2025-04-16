@@ -766,6 +766,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup sidebar
   setupSidebar();
 
+  setupRecalculateRatioButton();
+
   // Event delegation for common elements
   document.addEventListener("click", (e) => {
     const editBtn = e.target.closest(".edit-btn");
@@ -989,4 +991,48 @@ function toggleArabicText(button) {
         showNotification("Error fetching Arabic text", "error");
       });
   }
+}
+
+function setupRecalculateRatioButton() {
+  const recalculateBtn = document.getElementById("recalculate-ratio-btn");
+
+  if (!recalculateBtn) {
+    console.warn("Recalculate ratio button not found. Skipping setup.");
+    return;
+  }
+
+  recalculateBtn.addEventListener("click", function () {
+    recalculateBtn.disabled = true;
+    recalculateBtn.textContent = "Recalculating...";
+
+    fetch("/recalculate_ratios", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "success") {
+          showNotification(data.message);
+          if (
+            confirm(
+              "Ratios have been recalculated. Reload the page to see the updated values?"
+            )
+          ) {
+            window.location.reload();
+          }
+        } else {
+          showNotification(data.message, "error");
+        }
+      })
+      .catch((error) => {
+        console.error("Error recalculating ratios:", error);
+        showNotification("Failed to recalculate ratios", "error");
+      })
+      .finally(() => {
+        recalculateBtn.disabled = false;
+        recalculateBtn.textContent = "Recalculate Ratios";
+      });
+  });
 }

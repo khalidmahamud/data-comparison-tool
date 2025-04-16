@@ -761,6 +761,57 @@ def get_arabic_text():
         return jsonify({'status': 'error', 'message': str(e)})
 
 
+@app.route('/recalculate_ratios', methods=['POST'])
+def recalculate_ratios():
+    input_file = get_input_file_path()
+    if not os.path.exists(input_file):
+        return jsonify({'status': 'error', 'message': 'Excel file not found'})
+        
+    try:
+        # Read the Excel file
+        df = pd.read_excel(input_file, sheet_name='hadith')
+        
+        # Calculate ratios for each row
+        df['ratio'] = df.apply(lambda row: difflib.SequenceMatcher(
+            None, 
+            extract_standard_letters(str(row['hadith_details']) if pd.notna(row['hadith_details']) else ""),
+            extract_standard_letters(str(row['analysis-3']) if pd.notna(row['analysis-3']) else ""),
+            autojunk=False
+        ).ratio() * 100, axis=1)
+        
+        # Save the updated ratios back to Excel
+        wb = load_workbook(input_file)
+        if 'hadith' not in wb.sheetnames:
+            return jsonify({'status': 'error', 'message': "'hadith' sheet not found in Excel file"})
+            
+        ws = wb['hadith']
+        
+        # Find the last column index or the existing ratio column
+        ratio_col_idx = None
+        last_col_idx = len(next(ws.rows))
+        
+        for idx, cell in enumerate(next(ws.rows)):
+            if cell.value == 'ratio':
+                ratio_col_idx = idx
+                break
+                
+        ratio_col_letter = get_column_letter(ratio_col_idx + 1) if ratio_col_idx is not None else get_column_letter(last_col_idx + 1)
+        
+        # Add or update ratio header if needed
+        if ratio_col_idx is None:
+            ws[f'{ratio_col_letter}1'] = 'ratio'
+        
+        # Update ratio values for each row
+        for idx, ratio in enumerate(df['ratio'], start=2):
+            ws[f'{ratio_col_letter}{idx}'] = ratio
+        
+        wb.save(input_file)
+        
+        return jsonify({'status': 'success', 'message': 'Ratios recalculated successfully'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+
 @app.context_processor
 def utility_processor():
     return dict(urlencode=urlencode)
