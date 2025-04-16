@@ -607,6 +607,7 @@ def regenerate_cell():
             'status': 'success',
             'new_text': new_text,
             'highlighted_html': highlighted_b,
+            'highlighted_a_html': highlighted_a,  # Include highlighted HTML for column A
             'diff_status': status,
             'col_b_approved': col_b_approved,  # Add approval status
             'col_b_type': col_b_type          # Add approval type
