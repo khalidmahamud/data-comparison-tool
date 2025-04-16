@@ -219,18 +219,21 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
     else:
         print("Warning: 'change' column not found in the sheet.")
 
+    # Sort by ratio in ascending order (smaller ratios first)
+    df = df.sort_values(by='ratio', ascending=True)
+
     if filter_change_enabled and change_col_exists:
-        df = df.dropna(subset=['change'])
+        df = df.dropna(subset=['ratio'])
         if filter_change_value is not None:
             try:
                 filter_val = float(filter_change_value)
-                df = df[df['change'] > filter_val]
+                df = df[df['ratio'] > filter_val]
             except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change >': {filter_change_value}. Error: {e}")
         if filter_change_lt_value is not None:
             try:
                 filter_val = float(filter_change_lt_value)
-                df = df[df['change'] < filter_val]
+                df = df[df['ratio'] < filter_val]
             except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change <': {filter_change_lt_value}. Error: {e}")
         if filter_change_from_value is not None and filter_change_to_value is not None:
@@ -238,21 +241,21 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
                 filter_from = float(filter_change_from_value)
                 filter_to = float(filter_change_to_value)
                 if filter_from <= filter_to:
-                    df = df[(df['change'] >= filter_from) & (df['change'] <= filter_to)]
+                    df = df[(df['ratio'] >= filter_from) & (df['ratio'] <= filter_to)]
                 else: # Handle case where user might swap from/to
-                    df = df[(df['change'] >= filter_to) & (df['change'] <= filter_from)]
+                    df = df[(df['ratio'] >= filter_to) & (df['ratio'] <= filter_from)]
             except (ValueError, TypeError) as e:
                 print(f"Invalid filter values for 'change between': {filter_change_from_value}-{filter_change_to_value}. Error: {e}")
         elif filter_change_from_value is not None: # Only From is specified
              try:
                 filter_from = float(filter_change_from_value)
-                df = df[df['change'] >= filter_from]
+                df = df[df['ratio'] >= filter_from]
              except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change From': {filter_change_from_value}. Error: {e}")
         elif filter_change_to_value is not None: # Only To is specified
              try:
                 filter_to = float(filter_change_to_value)
-                df = df[df['change'] <= filter_to]
+                df = df[df['ratio'] <= filter_to]
              except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change To': {filter_change_to_value}. Error: {e}")
 
