@@ -7,6 +7,15 @@ from prompt import inject_variables, read_file
 from ai import ask
 from config import config
 
+
+def extract_standard_letters(text):
+    pattern = r'[^\w\s]'
+    
+    result = re.sub(pattern, '', text, flags=re.UNICODE)
+    
+    return result
+
+
 def read_row(row_idx: int, input_file: str) -> Tuple[str, str, str]:
     excel_path = Path(input_file)
     if not excel_path.exists():

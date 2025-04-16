@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 import uuid
 import yaml
 from pathlib import Path
-from generate_cell import generate
+from generate_cell import generate, extract_standard_letters
 
 app = Flask(__name__)
 
@@ -76,6 +76,11 @@ def compare_text(text1, text2):
     words2 = [word for word in words2 if word]
     
     matcher = difflib.SequenceMatcher(None, words1, words2, autojunk=False)
+
+
+
+    
+
     result1, result2 = [], []
     diff_id_counter = 0
     
