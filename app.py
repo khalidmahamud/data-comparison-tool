@@ -36,7 +36,7 @@ def get_available_chunks():
             chunks.append({
                 'filename': os.path.join(chunks_dir, filename),
                 'chunk_num': chunk_num,
-                'display_name': f"{chunk_num} ({start_row}-{end_row})",
+                'display_name': f"C{chunk_num} ({start_row}-{end_row})",
                 'start_row': start_row,
                 'end_row': end_row
             })

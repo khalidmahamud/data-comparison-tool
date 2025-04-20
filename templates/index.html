@@ -209,6 +209,17 @@
         <button id="sidebar-close" class="sidebar-close-btn">×</button>
         <h3>Settings</h3>
         <hr>
+
+        <div class="sidebar-section theme-section">
+            <span class="section-title">Display Theme</span>
+            <div class="theme-switch-wrapper">
+                <label class="switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" />
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+        <hr>
         
         <!-- Data Selection Section -->
         <div class="sidebar-section data-section">
@@ -246,16 +257,7 @@
         <hr>
         
         <!-- Theme Switch -->
-        <div class="sidebar-section theme-section">
-            <span class="section-title">Display Theme</span>
-            <div class="theme-switch-wrapper">
-                <label class="switch" for="checkbox">
-                    <input type="checkbox" id="checkbox" />
-                    <span class="slider round"></span>
-                </label>
-            </div>
-        </div>
-        <hr>
+        
         <!-- Combined Filter Section -->
         {% if change_col_exists %}
         <div class="sidebar-section filter-section">
