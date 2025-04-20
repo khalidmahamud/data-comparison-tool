@@ -212,10 +212,9 @@
         
         <!-- Data Selection Section -->
         <div class="sidebar-section data-section">
-            <span class="section-title">Data Selection</span>
             <!-- Chunk Selector -->
             <div class="setting-item compact">
-                <form action="/select_chunk" method="post" id="chunk-form">
+                <form action="/select_chunk" method="post" id="chunk-form" style="display: flex;justify-content: space-between; align-items: center;">
                     <label for="chunk_path">Chunk:</label>
                     <select name="chunk_path" id="chunk_path" onchange="this.form.submit()" class="compact-select">
                         {% for chunk in available_chunks %}
@@ -228,8 +227,8 @@
             </div>
             
             <!-- Rows per page -->
-            <div class="setting-item compact">
-                <form action="/" method="get" id="rows-form">
+            <div class="setting-item compact" style="margin-top: 10px;">
+                <form action="/" method="get" id="rows-form" style="display: flex;justify-content: space-between; align-items: center;">
                     <!-- Preserve all current query parameters except 'rows_per_page' and 'page' -->
                     {% for key, value in request.args.items() if key not in ['rows_per_page', 'page'] %}
                         <input type="hidden" name="{{ key }}" value="{{ value }}">
