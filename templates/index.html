@@ -264,6 +264,12 @@
                     </select>
                 </div>
 
+                <h4>Filter By ID</h4>
+                <div class="filter-item">
+                    <label for="filter-id-input">Show only ID:</label>
+                    <input type="text" name="filter_id" id="filter-id-input" value="{{ request.args.get('filter_id', '') }}" placeholder="Enter ID value">
+                </div>
+
                 <h4>Filter By Percentage</h4>
                 <div class="filter-item">
                     <label for="filter-change-input">Greater Than ></label>
@@ -345,6 +351,10 @@
                 if (changeFromInput) changeFromInput.value = '';
                 const changeToInput = form.querySelector('input[name="filter_change_to_value"]');
                 if (changeToInput) changeToInput.value = '';
+                
+                // Reset ID filter
+                const idFilterInput = form.querySelector('input[name="filter_id"]');
+                if (idFilterInput) idFilterInput.value = '';
                 
                 // Reset color filters to 'any'
                 const colorASelect = form.querySelector('select[name="filter_color_a"]');

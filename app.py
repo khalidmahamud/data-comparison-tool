@@ -200,7 +200,7 @@ def get_cell_color_status():
     
     return color_status
 
-def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter_change_value=None, filter_change_lt_value=None, filter_change_from_value=None, filter_change_to_value=None, filter_color_a='any', filter_color_b='any', sort_order='asc'):
+def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter_change_value=None, filter_change_lt_value=None, filter_change_from_value=None, filter_change_to_value=None, filter_color_a='any', filter_color_b='any', sort_order='asc', filter_id=None):
     input_file = get_input_file_path() # Get path from config
     if not os.path.exists(input_file): return [], 0, 0, False
 
@@ -306,6 +306,42 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
     # Get color status before filtering
     approved_cells = get_cell_color_status()
 
+    # Apply ID filter if provided
+    if filter_id is not None and filter_id != "":
+        # First try to filter by 'number' column if it exists
+        if number_col_exists:
+            # Convert filter_id to the same type as in the DataFrame for comparison
+            sample_type = type(df['number'].iloc[0]) if not df.empty and not pd.isna(df['number'].iloc[0]) else None
+            if sample_type == int:
+                try:
+                    filter_id_value = int(filter_id)
+                    df = df[df['number'] == filter_id_value]
+                except (ValueError, TypeError):
+                    # If conversion fails, try exact string match
+                    df = df[df['number'].astype(str) == str(filter_id)]
+            elif sample_type == float:
+                try:
+                    filter_id_value = float(filter_id)
+                    df = df[df['number'] == filter_id_value]
+                except (ValueError, TypeError):
+                    # If conversion fails, try exact string match
+                    df = df[df['number'].astype(str) == str(filter_id)]
+            else:
+                # For any other type, use string comparison
+                df = df[df['number'].astype(str) == str(filter_id)]
+        
+        # If number column doesn't exist or no match was found, try to filter by index
+        if len(df) == 0 or not number_col_exists:
+            try:
+                # Try to convert filter_id to integer for index filtering
+                filter_idx = int(filter_id)
+                if filter_idx in df.index:
+                    df = df.loc[[filter_idx]]
+            except (ValueError, TypeError):
+                # If filter_id is not a valid integer, no rows will match
+                if not number_col_exists:  # Only apply empty filter if we haven't found matches already
+                    df = df.head(0)  # Empty DataFrame with same structure
+
     # Add color status info directly to the DataFrame for efficient filtering
     df['col_a_approved'] = df.index.map(lambda idx: approved_cells.get(idx + 2, {}).get('col_a', False))
     df['col_a_type'] = df.index.map(lambda idx: approved_cells.get(idx + 2, {}).get('col_a_type', None))
@@ -376,6 +412,11 @@ def index():
     filter_color_a = request.args.get('filter_color_a', default='any').strip().lower()
     filter_color_b = request.args.get('filter_color_b', default='any').strip().lower()
     sort_order = request.args.get('sort_order', default='asc').strip().lower()
+    filter_id = request.args.get('filter_id', default=None)
+    
+    # If filter_id is provided but empty, set it to None
+    if filter_id and filter_id.strip() == "":
+        filter_id = None
 
     filter_change_gt_value = None
     filter_change_lt_value = None
@@ -427,7 +468,8 @@ def index():
         filter_change_to_value,
         filter_color_a,
         filter_color_b,
-        sort_order
+        sort_order,
+        filter_id
     )
 
     query_params = {
@@ -447,6 +489,10 @@ def index():
     # Add sort_order to query params if it's not the default 'asc'
     if sort_order != 'asc': query_params['sort_order'] = sort_order
 
+    # Add ID filter to query params if it's not None
+    if filter_id is not None:
+        query_params['filter_id'] = filter_id
+
     return render_template('index.html',
                           data=data,
                           total_pages=total_pages,
@@ -461,6 +507,7 @@ def index():
                           filter_change_to_value=filter_change_to_value_str,
                           filter_color_a=filter_color_a,
                           filter_color_b=filter_color_b,
+                          filter_id=filter_id,
                           sort_order=sort_order,
                           change_col_exists=change_col_exists,
                           query_params=query_params,
