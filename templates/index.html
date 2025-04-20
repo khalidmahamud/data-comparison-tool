@@ -8,11 +8,10 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
 </head>
 <body>
     <div class="container">
-        <!-- Sidebar Toggle Button moved here -->
+        <!-- Sidebar Toggle Button -->
         <button id="sidebar-toggle" class="sidebar-toggle-btn" title="Settings">
             <i class="material-icons">settings</i>
         </button>
@@ -32,21 +31,11 @@
                 </form>
 
                 <form action="/" method="get" id="rows-form">
-                    <!-- Include hidden filter params if this form is separate -->
-                    {% if filter_change_enabled %}
-                        <input type="hidden" name="filter_change_enabled" value="on">
-                        <input type="hidden" name="filter_change_value" value="{{ filter_change_value }}">
-                        <input type="hidden" name="filter_change_lt_value" value="{{ filter_change_lt_value }}">
-                        <input type="hidden" name="filter_change_from_value" value="{{ filter_change_from_value }}">
-                        <input type="hidden" name="filter_change_to_value" value="{{ filter_change_to_value }}">
-                    {% endif %}
-                    {% if filter_color_a != 'any' %}
-                        <input type="hidden" name="filter_color_a" value="{{ filter_color_a }}">
-                    {% endif %}
-                    {% if filter_color_b != 'any' %}
-                        <input type="hidden" name="filter_color_b" value="{{ filter_color_b }}">
-                    {% endif %}
-                    <input type="hidden" name="page" value="1"> <!-- Go to page 1 when changing rows -->
+                    <!-- Preserve all current query parameters except 'rows_per_page' and 'page' -->
+                    {% for key, value in request.args.items() if key not in ['rows_per_page', 'page'] %}
+                        <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                    <input type="hidden" name="page" value="1">
                     <label for="rows_per_page">Rows per page:</label>
                     <select name="rows_per_page" id="rows_per_page" onchange="this.form.submit()">
                         <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10</option>
@@ -93,8 +82,6 @@
                                                     <i class="material-icons">check_circle</i>
                                                 </button>
                                             </form>
-
-
                                             <form action="/reset_cell" method="post">
                                                 <input type="hidden" name="row_idx" value="{{ item.row_idx }}">
                                                 <input type="hidden" name="column" value="a">
@@ -104,9 +91,6 @@
                                                     <i class="material-icons">cancel</i>
                                                 </button>
                                             </form>
-
-
-
                                             <button class="toggle-arabic-btn" data-row="{{ item.row_idx }}" title="Toggle Arabic Text">
                                                 <i class="material-icons">translate</i>
                                             </button>
@@ -188,12 +172,10 @@
                         {% set page_1_params = query_params.copy() %}
                         {% set _ = page_1_params.update({'page': 1}) %}
                         <a href="?{{ urlencode(page_1_params) }}">« First</a>
-
                         {% set prev_params = query_params.copy() %}
                         {% set _ = prev_params.update({'page': current_page - 1}) %}
                         <a href="?{{ urlencode(prev_params) }}">Previous</a>
                     {% endif %}
-                    
                     {% set start_page = [1, current_page - 2] | max %}
                     {% set end_page = [total_pages + 1, current_page + 3] | min %}
                     {% for p in range(start_page, end_page) %}
@@ -205,12 +187,10 @@
                             <a href="?{{ urlencode(page_p_params) }}">{{ p }}</a>
                         {% endif %}
                     {% endfor %}
-                    
                     {% if current_page < total_pages %}
                         {% set next_params = query_params.copy() %}
                         {% set _ = next_params.update({'page': current_page + 1}) %}
                         <a href="?{{ urlencode(next_params) }}">Next</a>
-
                         {% set last_params = query_params.copy() %}
                         {% set _ = last_params.update({'page': total_pages}) %}
                         <a href="?{{ urlencode(last_params) }}">Last »</a>
@@ -225,13 +205,13 @@
         {% endif %}
     </div>
 
-    <!-- Add this notification div before the closing body tag -->
+    <!-- Notification -->
     <div id="notification" class="notification">Cell approved successfully!</div>
 
     <!-- Comment Modal -->
     <div id="commentModal" class="comment-modal">
         <div class="comment-modal-content">
-            <span class="close-comment">&times;</span>
+            <span class="close-comment">×</span>
             <h3>Add Comment</h3>
             <textarea id="commentText" class="comment-textarea" placeholder="Enter your comment here..."></textarea>
             <input type="hidden" id="commentRowIdx" value="">
@@ -244,43 +224,37 @@
         </div>
     </div>
 
-    <!-- Replace context menu with a floating save button -->
+    <!-- Floating Save Button -->
     <div id="selectionButton" style="display: none; position: absolute; z-index: 1000;">
         <i class="material-icons">add_circle</i>
         Add Selection
     </div>
 
-    <!-- Add sidebar HTML structure -->
+    <!-- Sidebar with Combined Filters -->
     <div id="settings-sidebar" class="sidebar">
         <button id="sidebar-close" class="sidebar-close-btn">×</button>
         <h3>Settings</h3>
         <hr>
         <!-- Theme Switch -->
         <div class="sidebar-section theme-section">
-             <span class="section-title">Display Theme</span>
-             <div class="theme-switch-wrapper">
-                 <label class="switch" for="checkbox">
-                     <input type="checkbox" id="checkbox" />
-                     <span class="slider round"></span>
-                 </label>
-             </div>
+            <span class="section-title">Display Theme</span>
+            <div class="theme-switch-wrapper">
+                <label class="switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" />
+                    <span class="slider round"></span>
+                </label>
+            </div>
         </div>
         <hr>
-        <!-- Change Filter Section -->
+        <!-- Combined Filter Section -->
         {% if change_col_exists %}
         <div class="sidebar-section filter-section">
-            <form action="/" method="get" id="filter-form">
-                <!-- Hidden inputs to preserve pagination/rows state -->
+            <form action="/" method="get" id="combined-filter-form">
                 <input type="hidden" name="page" value="1">
                 <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
+                <input type="hidden"  name="filter_change_enabled" value="on">
 
-                <div class="filter-header">
-                    <h4>Filter By Percentage</h4>
-                    <label class="switch">
-                        <input type="checkbox" name="filter_change_enabled" value="on" {% if filter_change_enabled %}checked{% endif %}>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
+                <h4>Filter By Percentage</h4>
                 <div class="filter-item">
                     <label for="filter-change-input">Greater Than ></label>
                     <input type="text" step="any" name="filter_change_value" id="filter-change-input" value="{{ filter_change_value }}" placeholder="e.g., 10">
@@ -295,28 +269,8 @@
                     <span class="range-separator">and</span>
                     <input type="text" step="any" name="filter_change_to_value" id="filter-change-to-input" value="{{ filter_change_to_value }}" placeholder="To">
                 </div>
-                <div class="filter-buttons">
-                    <button type="submit" class="btn-apply-filter">Apply Filter</button>
-                    <button type="button" onclick="clearFilter()" class="clear-filter-btn">Clear</button>
-                </div>
-            </form>
-        </div>
-        <hr>
-        <!-- Color Filter Section -->
-        <div class="sidebar-section filter-section">
-            <h4>Color Filter</h4>
-            <form action="/" method="get" id="color-filter-form">
-                <!-- Hidden inputs to preserve pagination/rows state -->
-                <input type="hidden" name="page" value="1">
-                <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
-                <!-- Preserve change filters if enabled -->
-                {% if filter_change_enabled %}
-                    <input type="hidden" name="filter_change_enabled" value="on">
-                    <input type="hidden" name="filter_change_value" value="{{ filter_change_value }}">
-                    <input type="hidden" name="filter_change_lt_value" value="{{ filter_change_lt_value }}">
-                    <input type="hidden" name="filter_change_from_value" value="{{ filter_change_from_value }}">
-                    <input type="hidden" name="filter_change_to_value" value="{{ filter_change_to_value }}">
-                {% endif %}
+
+                <h4>Color Filter</h4>
                 <div class="filter-item">
                     <label for="filter-color-a" style="margin-right: 80px;">Column A</label>
                     <select name="filter_color_a" id="filter-color-a" class="filter-select">
@@ -337,7 +291,11 @@
                         <option value="yellow" {% if filter_color_b == 'yellow' %}selected{% endif %}>Yellow</option>
                     </select>
                 </div>
-                <button type="submit" class="btn-apply-filter">Apply Filter</button>
+
+                <div class="filter-buttons">
+                    <button type="submit" class="btn-apply-filter">Apply Filters</button>
+                    <button type="button" onclick="clearFilters()" class="clear-filter-btn">Clear All Filters</button>
+                </div>
             </form>
         </div>
         <hr>
@@ -348,12 +306,11 @@
                 <button id="recalculate-ratio-btn" class="btn-apply-filter">Recalculate Ratios</button>
             </div>
         </div>
-
         {% else %}
-         <div class="sidebar-section filter-section">
+        <div class="sidebar-section filter-section">
             <p><i>'change' column not found in Excel sheet. Filter unavailable.</i></p>
-         </div>
-         <hr>
+        </div>
+        <hr>
         {% endif %}
     </div>
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
@@ -361,24 +318,25 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
     <script>
-        // Function to clear the filter form
-        function clearFilter() {
-            const form = document.getElementById('filter-form');
+        // Function to clear all filters
+        function clearFilters() {
+            const form = document.getElementById('combined-filter-form');
             if (form) {
                 // Uncheck the enable filter checkbox
-                const enableCheckbox = document.getElementById('filter-change-enabled');
-                if (enableCheckbox) {
-                    enableCheckbox.checked = false;
-                }
-                // Reset other filter fields (add more if needed)
+                const enableCheckbox = form.querySelector('input[name="filter_change_enabled"]');
+                if (enableCheckbox) enableCheckbox.checked = true;
+                
+                // Reset percentage filter inputs
                 const changeValueInput = form.querySelector('input[name="filter_change_value"]');
                 if (changeValueInput) changeValueInput.value = '';
                 const changeLtInput = form.querySelector('input[name="filter_change_lt_value"]');
                 if (changeLtInput) changeLtInput.value = '';
                 const changeFromInput = form.querySelector('input[name="filter_change_from_value"]');
-                if (changeFromInput) changeFromInput.value = ''; 
+                if (changeFromInput) changeFromInput.value = '';
                 const changeToInput = form.querySelector('input[name="filter_change_to_value"]');
                 if (changeToInput) changeToInput.value = '';
+                
+                // Reset color filters to 'any'
                 const colorASelect = form.querySelector('select[name="filter_color_a"]');
                 if (colorASelect) colorASelect.value = 'any';
                 const colorBSelect = form.querySelector('select[name="filter_color_b"]');

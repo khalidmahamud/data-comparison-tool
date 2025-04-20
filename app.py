@@ -200,7 +200,7 @@ def get_cell_color_status():
     
     return color_status
 
-def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter_change_value=None, filter_change_lt_value=None, filter_change_from_value=None, filter_change_to_value=None, filter_color_a='any', filter_color_b='any'):
+def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter_change_value=None, filter_change_lt_value=None, filter_change_from_value=None, filter_change_to_value=None, filter_color_a='any', filter_color_b='any', sort_order='asc'):
     input_file = get_input_file_path() # Get path from config
     if not os.path.exists(input_file): return [], 0, 0, False
 
@@ -259,8 +259,12 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
     else:
         print("Warning: 'change' column not found in the sheet.")
 
-    # Sort by ratio in ascending order (smaller ratios first)
-    df = df.sort_values(by='ratio', ascending=True)
+    # Sort by ratio based on sort_order parameter
+    if sort_order == 'asc':
+        df = df.sort_values(by='ratio', ascending=True)
+    elif sort_order == 'desc':
+        df = df.sort_values(by='ratio', ascending=False)
+    # If sort_order is 'none', no sorting is applied - retain original order
 
     if filter_change_enabled and change_col_exists:
         df = df.dropna(subset=['ratio'])
@@ -371,6 +375,7 @@ def index():
     filter_change_to_value_str = request.args.get('filter_change_to_value', default='').strip()
     filter_color_a = request.args.get('filter_color_a', default='any').strip().lower()
     filter_color_b = request.args.get('filter_color_b', default='any').strip().lower()
+    sort_order = request.args.get('sort_order', default='asc').strip().lower()
 
     filter_change_gt_value = None
     filter_change_lt_value = None
@@ -381,6 +386,10 @@ def index():
     valid_colors = ['any', 'none', 'green', 'red', 'yellow']
     if filter_color_a not in valid_colors: filter_color_a = 'any'
     if filter_color_b not in valid_colors: filter_color_b = 'any'
+    
+    # Validate sort_order
+    valid_sort_orders = ['asc', 'desc', 'none']
+    if sort_order not in valid_sort_orders: sort_order = 'asc'
 
     if filter_change_enabled:
         if filter_change_gt_value_str:
@@ -417,7 +426,8 @@ def index():
         filter_change_from_value,
         filter_change_to_value,
         filter_color_a,
-        filter_color_b
+        filter_color_b,
+        sort_order
     )
 
     query_params = {
@@ -433,6 +443,9 @@ def index():
     # Add color filters to query params if they are not 'any'
     if filter_color_a != 'any': query_params['filter_color_a'] = filter_color_a
     if filter_color_b != 'any': query_params['filter_color_b'] = filter_color_b
+    
+    # Add sort_order to query params if it's not the default 'asc'
+    if sort_order != 'asc': query_params['sort_order'] = sort_order
 
     return render_template('index.html',
                           data=data,
@@ -448,6 +461,7 @@ def index():
                           filter_change_to_value=filter_change_to_value_str,
                           filter_color_a=filter_color_a,
                           filter_color_b=filter_color_b,
+                          sort_order=sort_order,
                           change_col_exists=change_col_exists,
                           query_params=query_params,
                           available_chunks=get_available_chunks(),
