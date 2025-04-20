@@ -14,6 +14,42 @@ app = Flask(__name__)
 # --- Configuration Loading ---
 config = {} # Global config dictionary
 
+# Global variable to track the currently selected chunk
+current_chunk = None
+
+# Function to get all available chunks
+def get_available_chunks():
+    chunks_dir = 'chunks'
+    if not os.path.exists(chunks_dir):
+        return []
+    
+    chunks = []
+    chunk_pattern = re.compile(r'chunk_(\d+)_rows_(\d+)-(\d+)\.xlsx')
+    
+    for filename in os.listdir(chunks_dir):
+        if chunk_pattern.match(filename):
+            chunk_match = chunk_pattern.match(filename)
+            chunk_num = int(chunk_match.group(1))
+            start_row = int(chunk_match.group(2))
+            end_row = int(chunk_match.group(3))
+            
+            chunks.append({
+                'filename': os.path.join(chunks_dir, filename),
+                'chunk_num': chunk_num,
+                'display_name': f"Chunk {chunk_num} (Rows {start_row}-{end_row})",
+                'start_row': start_row,
+                'end_row': end_row
+            })
+    
+    # Sort by chunk number
+    chunks.sort(key=lambda x: x['chunk_num'])
+    return chunks
+
+# Initialize current_chunk to the first available chunk
+chunks = get_available_chunks()
+if chunks:
+    current_chunk = chunks[0]['filename']
+
 def load_config(config_path: str = 'config_flash.yaml'):
     # Loads configuration from a YAML file.
     global config
@@ -36,6 +72,10 @@ def load_config(config_path: str = 'config_flash.yaml'):
         config = {} # Reset config on error
 
 def get_input_file_path() -> str:
+    global current_chunk
+    if current_chunk:
+        return current_chunk
+
     # Gets the input file path from the loaded configuration.
     default_path = 'input.xlsx' # Keep the original default
     if not config:
@@ -409,7 +449,9 @@ def index():
                           filter_color_a=filter_color_a,
                           filter_color_b=filter_color_b,
                           change_col_exists=change_col_exists,
-                          query_params=query_params
+                          query_params=query_params,
+                          available_chunks=get_available_chunks(),
+                          current_chunk=current_chunk
                           )
 
 @app.route('/edit', methods=['POST'])
@@ -564,10 +606,10 @@ def preview_diff():
 def regenerate_cell():
     row_idx = request.form.get('row_idx', type=int)
     try:
-        new_text = generate(row_idx).strip()
-
+        new_text = generate(row_idx, get_input_file_path()).strip()
 
         input_file = get_input_file_path()
+        
         if not os.path.exists(input_file):
             return jsonify({'status': 'error', 'message': 'Excel file not found after regeneration'})
 
@@ -812,6 +854,20 @@ def recalculate_ratios():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+@app.route('/select_chunk', methods=['POST'])
+def select_chunk():
+    global current_chunk
+    chunk_path = request.form.get('chunk_path')
+    
+    # Validate the chunk path
+    if chunk_path and os.path.exists(chunk_path) and os.path.isfile(chunk_path):
+        current_chunk = chunk_path
+        print(f"Selected chunk changed to: {current_chunk}")
+    else:
+        print(f"Warning: Invalid chunk path: {chunk_path}")
+    
+    # Redirect back to the index page with the same query parameters
+    return redirect(url_for('index', **request.args))
 
 @app.context_processor
 def utility_processor():

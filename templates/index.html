@@ -20,6 +20,17 @@
      
         <div class="controls">
             <div>
+                <form action="/select_chunk" method="post" id="chunk-form" style="margin-bottom: 10px;">
+                    <label for="chunk_path">Select Chunk:</label>
+                    <select name="chunk_path" id="chunk_path" onchange="this.form.submit()">
+                        {% for chunk in available_chunks %}
+                            <option value="{{ chunk.filename }}" {% if current_chunk == chunk.filename %}selected{% endif %}>
+                                {{ chunk.display_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+
                 <form action="/" method="get" id="rows-form">
                     <!-- Include hidden filter params if this form is separate -->
                     {% if filter_change_enabled %}

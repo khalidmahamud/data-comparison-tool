@@ -106,8 +106,8 @@ def save_to_excel(row_idx: int, new_text: str, input_file: str, output_file: str
             return False
 
 
-def generate(row_idx: int) -> str:
-    arabic_text, hadith_details, current_analysis = read_row(row_idx, config.file_settings.input_file)
+def generate(row_idx: int, input_file: str) -> str:
+    arabic_text, hadith_details, current_analysis = read_row(row_idx, input_file)
 
     query = inject_variables(read_file("./prompts/regenerate_hadis_prompt.md"), {
         "hadis_arabic_text": arabic_text,

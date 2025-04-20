@@ -52,4 +52,6 @@ def ask(query: str, config: GenerationConfigType | None = {}):
   if config is None:
     config = {}
 
+  print(query)
+
   return client.generate_content(contents=query,generation_config={ "max_output_tokens": flash.max_tokens, **config })

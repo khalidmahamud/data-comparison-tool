@@ -148,7 +148,7 @@ def main():
     parser = argparse.ArgumentParser(description='Split and merge Excel files')
     parser.add_argument('--action', choices=['split', 'merge'], required=True, help='Action to perform (split or merge)')
     parser.add_argument('--input', help='Input Excel file to split')
-    parser.add_argument('--output', help='Output file or directory')
+    parser.add_argument('--output', help='Output file or directory', default='combined.xlsx')
     parser.add_argument('--chunk-dir', default='chunks', help='Directory for chunks (default: chunks)')
     parser.add_argument('--rows', type=int, default=500, help='Rows per chunk (default: 500)')
     
