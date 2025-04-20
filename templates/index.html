@@ -18,32 +18,6 @@
         <h1>Hadith Text Comparison Tool</h1>
      
         <div class="controls">
-            <div>
-                <form action="/select_chunk" method="post" id="chunk-form" style="margin-bottom: 10px;">
-                    <label for="chunk_path">Select Chunk:</label>
-                    <select name="chunk_path" id="chunk_path" onchange="this.form.submit()">
-                        {% for chunk in available_chunks %}
-                            <option value="{{ chunk.filename }}" {% if current_chunk == chunk.filename %}selected{% endif %}>
-                                {{ chunk.display_name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </form>
-
-                <form action="/" method="get" id="rows-form">
-                    <!-- Preserve all current query parameters except 'rows_per_page' and 'page' -->
-                    {% for key, value in request.args.items() if key not in ['rows_per_page', 'page'] %}
-                        <input type="hidden" name="{{ key }}" value="{{ value }}">
-                    {% endfor %}
-                    <input type="hidden" name="page" value="1">
-                    <label for="rows_per_page">Rows per page:</label>
-                    <select name="rows_per_page" id="rows_per_page" onchange="this.form.submit()">
-                        <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10</option>
-                        <option value="50" {% if rows_per_page == 50 %}selected{% endif %}>50</option>
-                        <option value="100" {% if rows_per_page == 100 %}selected{% endif %}>100</option>
-                    </select>
-                </form>
-            </div>
             <div class="info">
                 {% if total_rows > 0 %}
                     Showing {{ (current_page - 1) * rows_per_page + 1 }} to 
@@ -235,6 +209,43 @@
         <button id="sidebar-close" class="sidebar-close-btn">×</button>
         <h3>Settings</h3>
         <hr>
+        
+        <!-- Data Selection Section -->
+        <div class="sidebar-section data-section">
+            <span class="section-title">Data Selection</span>
+            <!-- Chunk Selector -->
+            <div class="setting-item compact">
+                <form action="/select_chunk" method="post" id="chunk-form">
+                    <label for="chunk_path">Chunk:</label>
+                    <select name="chunk_path" id="chunk_path" onchange="this.form.submit()" class="compact-select">
+                        {% for chunk in available_chunks %}
+                            <option value="{{ chunk.filename }}" {% if current_chunk == chunk.filename %}selected{% endif %}>
+                                {{ chunk.display_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            
+            <!-- Rows per page -->
+            <div class="setting-item compact">
+                <form action="/" method="get" id="rows-form">
+                    <!-- Preserve all current query parameters except 'rows_per_page' and 'page' -->
+                    {% for key, value in request.args.items() if key not in ['rows_per_page', 'page'] %}
+                        <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                    <input type="hidden" name="page" value="1">
+                    <label for="rows_per_page">Rows:</label>
+                    <select name="rows_per_page" id="rows_per_page" onchange="this.form.submit()" class="compact-select">
+                        <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="50" {% if rows_per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if rows_per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                </form>
+            </div>
+        </div>
+        <hr>
+        
         <!-- Theme Switch -->
         <div class="sidebar-section theme-section">
             <span class="section-title">Display Theme</span>
