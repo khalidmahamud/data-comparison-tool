@@ -4,6 +4,9 @@ import re
 import sys
 import argparse
 from openpyxl import load_workbook
+from config import config
+
+
 
 def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
     """
@@ -147,20 +150,15 @@ def merge_excel(chunk_dir='chunks', output_file=None):
 def main():
     parser = argparse.ArgumentParser(description='Split and merge Excel files')
     parser.add_argument('--action', choices=['split', 'merge'], required=True, help='Action to perform (split or merge)')
-    parser.add_argument('--input', help='Input Excel file to split')
-    parser.add_argument('--output', help='Output file or directory', default='combined.xlsx')
-    parser.add_argument('--chunk-dir', default='chunks', help='Directory for chunks (default: chunks)')
+    parser.add_argument('--input', help='Input Excel file to split', default=config.file_settings.input_file)
+    parser.add_argument('--output', help='Output file or directory', default=config.file_settings.merged_file)
+    parser.add_argument('--chunk-dir', default=config.file_settings.chunks_directory, help='Directory for chunks')
     parser.add_argument('--rows', type=int, default=500, help='Rows per chunk (default: 500)')
     
     args = parser.parse_args()
     
     if args.action == 'split':
-        if not args.input:
-            print("Error: --input is required for split action")
-            sys.exit(1)
-            
-        output_dir = args.output or args.chunk_dir
-        split_excel(args.input, output_dir, args.rows)
+        split_excel(args.input, args.chunk_dir, args.rows)
         
     elif args.action == 'merge':
         chunk_dir = args.chunk_dir

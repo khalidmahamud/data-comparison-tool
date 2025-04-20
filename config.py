@@ -25,6 +25,8 @@ class FileSettings:
     input_file: str
     output_file: str
     prompts_file: str
+    chunks_directory: str
+    merged_file: str
 
 
 @dataclass
@@ -34,7 +36,7 @@ class Config:
     file_settings: FileSettings
 
 
-def load_config(config_path: str) -> Optional[Config]:
+def load_config(config_path: str) -> Config:
     config_path = Path(config_path)
 
     if not config_path.exists():
@@ -55,3 +57,4 @@ def load_config(config_path: str) -> Optional[Config]:
 
 config = load_config('config_flash.yaml')
 
+ 
