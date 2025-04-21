@@ -58,7 +58,28 @@ file_settings:
   input_file: "input.xlsx"
   output_file: "input.xlsx"
   prompts_file: "prompts.txt"
+  chunks_directory: "chunks"
+  merged_file: "merged_output.xlsx"
+
+excel_settings:
+  sheet_name: "hadith"
+  columns:
+    primary_text: "hadith_details"
+    secondary_text: "analysis-3"
+    ratio: "ratio"
+    number: "number"
+    arabic_text: "arabic_text"
 ```
+
+The `excel_settings` section allows you to customize:
+
+- `sheet_name`: The name of the Excel sheet containing your data
+- `columns`: Mapping of column logical names to actual column names in Excel
+  - `primary_text`: Column containing the primary text (default: "hadith_details")
+  - `secondary_text`: Column containing the secondary text for comparison (default: "analysis-3")
+  - `ratio`: Column for storing similarity ratios (default: "ratio")
+  - `number`: Column containing row identifiers (default: "number")
+  - `arabic_text`: Column containing Arabic text if available (default: "arabic_text")
 
 ## Creating a Sample Excel File
 

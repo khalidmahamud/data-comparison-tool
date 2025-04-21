@@ -23,3 +23,14 @@ file_settings:
   input_file: "input-ist.xlsx"
   output_file: "input-ist.xlsx"
   prompts_file: "prompts.txt"
+  chunks_directory: "chunks"
+  merged_file: "merged_output.xlsx"
+
+excel_settings:
+  sheet_name: "hadith"
+  columns:
+    primary_text: "hadith_details"
+    secondary_text: "analysis-3"
+    ratio: "ratio"
+    number: "number"
+    arabic_text: "arabic_text"

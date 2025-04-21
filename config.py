@@ -30,10 +30,17 @@ class FileSettings:
 
 
 @dataclass
+class ExcelSettings:
+    sheet_name: str
+    columns: Dict[str, str]
+
+
+@dataclass
 class Config:
     processing: ProcessingConfig
     api_settings: Dict[str, ApiConfig]
     file_settings: FileSettings
+    excel_settings: ExcelSettings
 
 
 def load_config(config_path: str) -> Config:
@@ -51,7 +58,17 @@ def load_config(config_path: str) -> Config:
             for key, value in config_dict['api_settings'].items()
             if not key.startswith('#')
         },
-        file_settings=FileSettings(**config_dict['file_settings'])
+        file_settings=FileSettings(**config_dict['file_settings']),
+        excel_settings=ExcelSettings(**config_dict.get('excel_settings', {
+            'sheet_name': 'hadith',
+            'columns': {
+                'primary_text': 'hadith_details',
+                'secondary_text': 'analysis-3',
+                'ratio': 'ratio',
+                'number': 'number',
+                'arabic_text': 'arabic_text'
+            }
+        }))
     )
 
 

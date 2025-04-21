@@ -22,6 +22,38 @@ def copy_cell_style(source_cell, target_cell):
         target_cell.protection = copy(source_cell.protection)
         target_cell.alignment = copy(source_cell.alignment)
 
+def validate_columns(worksheet):
+    """
+    Validate that required columns exist in the worksheet.
+    
+    Args:
+        worksheet: The openpyxl worksheet to validate
+        
+    Returns:
+        tuple: (is_valid, missing_columns, has_ratio)
+    """
+    # Get column names from config
+    primary_text_col = config.excel_settings.columns.get('primary_text', 'hadith_details')
+    secondary_text_col = config.excel_settings.columns.get('secondary_text', 'analysis-3')
+    ratio_col = config.excel_settings.columns.get('ratio', 'ratio')
+    
+    # Extract header row values
+    header_values = [cell.value for cell in next(worksheet.rows)]
+    
+    # Check if required columns exist
+    missing_columns = []
+    if primary_text_col not in header_values:
+        missing_columns.append(primary_text_col)
+    if secondary_text_col not in header_values:
+        missing_columns.append(secondary_text_col)
+        
+    # Ratio column is optional
+    has_ratio = ratio_col in header_values
+    
+    is_valid = len(missing_columns) == 0
+    
+    return is_valid, missing_columns, has_ratio
+
 
 def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
     """
@@ -48,9 +80,23 @@ def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
     load_time = time.time()
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Workbook loaded in {load_time - start_time:.2f} seconds")
     
-    # Get the active sheet (or first sheet)
-    sheet_name = 'hadith' if 'hadith' in wb.sheetnames else wb.sheetnames[0]
+    # Get the sheet from configuration
+    sheet_name = config.excel_settings.sheet_name
+    if sheet_name not in wb.sheetnames:
+        sheet_name = wb.sheetnames[0]
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Configured sheet '{config.excel_settings.sheet_name}' not found. Using '{sheet_name}' instead.")
+    
     ws = wb[sheet_name]
+    
+    # Validate columns
+    is_valid, missing_columns, has_ratio = validate_columns(ws)
+    if not is_valid:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Error: Missing required columns: {', '.join(missing_columns)}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Required columns: {config.excel_settings.columns.get('primary_text', 'hadith_details')}, {config.excel_settings.columns.get('secondary_text', 'analysis-3')}")
+        return []
+    
+    if not has_ratio:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Optional ratio column '{config.excel_settings.columns.get('ratio', 'ratio')}' not found. It will be created during processing.")
     
     # Get total rows (excluding header)
     total_rows = ws.max_row - 1  # Subtract 1 for header row
@@ -188,8 +234,24 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     # Load the first chunk as our base workbook
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Loading first chunk: {chunk_files[0]['filename']}")
     first_chunk = load_workbook(chunk_files[0]['filename'])
-    sheet_name = 'hadith' if 'hadith' in first_chunk.sheetnames else first_chunk.sheetnames[0]
+    
+    # Get the sheet from configuration
+    sheet_name = config.excel_settings.sheet_name
+    if sheet_name not in first_chunk.sheetnames:
+        sheet_name = first_chunk.sheetnames[0]
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Configured sheet '{config.excel_settings.sheet_name}' not found in first chunk. Using '{sheet_name}' instead.")
+    
     first_chunk_ws = first_chunk[sheet_name]
+    
+    # Validate first chunk columns
+    is_valid, missing_columns, has_ratio = validate_columns(first_chunk_ws)
+    if not is_valid:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Error: Missing required columns in first chunk: {', '.join(missing_columns)}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Required columns: {config.excel_settings.columns.get('primary_text', 'hadith_details')}, {config.excel_settings.columns.get('secondary_text', 'analysis-3')}")
+        return None
+    
+    if not has_ratio:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Optional ratio column '{config.excel_settings.columns.get('ratio', 'ratio')}' not found in first chunk. It will need to be calculated after merge.")
     
     # Create a new workbook for the merged data
     merged_wb = Workbook()
@@ -214,7 +276,20 @@ def merge_excel(chunk_dir='chunks', output_file=None):
         
         # Load the chunk
         chunk_wb = load_workbook(chunk_info['filename'])
+        
+        # Verify the sheet exists in this chunk
+        if sheet_name not in chunk_wb.sheetnames:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Sheet '{sheet_name}' not found in chunk {i+1}. Skipping chunk.")
+            continue
+            
         chunk_ws = chunk_wb[sheet_name]
+        
+        # Validate this chunk's columns (only for chunks after the first one)
+        if i > 0:
+            is_valid, missing_columns, _ = validate_columns(chunk_ws)
+            if not is_valid:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Missing required columns in chunk {i+1}: {', '.join(missing_columns)}. Skipping chunk.")
+                continue
         
         # For the first chunk, include all rows (including header)
         start_row = 1 if i == 0 else 2  # Skip header for all but first chunk
@@ -253,7 +328,7 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     
     # Save the merged workbook
     if output_file is None:
-        output_file = 'merged_output.xlsx'
+        output_file = config.file_settings.merged_file
     
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Saving merged file: {output_file}")
     merged_wb.save(output_file)
@@ -264,6 +339,10 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Merge complete. Total rows: {current_row - 1}")
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Merging completed in {total_time:.2f} seconds")
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Average time per row: {total_time/(current_row-1):.4f} seconds")
+    
+    # Inform if ratio column was missing
+    if not has_ratio:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Note: The ratio column was not present in the chunks. You may need to recalculate ratios.")
     
     return output_file
 

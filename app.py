@@ -8,12 +8,11 @@ import uuid
 import yaml
 from pathlib import Path
 from generate_cell import generate, extract_standard_letters
+from config import config, load_config
 
 app = Flask(__name__)
 
 # --- Configuration Loading ---
-config = {} # Global config dictionary
-
 # Global variable to track the currently selected chunk
 current_chunk = None
 
@@ -50,26 +49,13 @@ chunks = get_available_chunks()
 if chunks:
     current_chunk = chunks[0]['filename']
 
-def load_config(config_path: str = 'config_flash.yaml'):
-    # Loads configuration from a YAML file.
+def reload_config(config_path: str = 'config_flash.yaml'):
+    # Reloads the configuration from a YAML file.
     global config
-    path = Path(config_path)
-    if not path.exists():
-        print(f"Warning: Configuration file '{config_path}' not found.")
-        config = {} # Ensure config is empty if file not found
-        return
     try:
-        with path.open('r') as f:
-            config = yaml.safe_load(f)
-        if not config: # Handle empty config file
-            print(f"Warning: Configuration file '{config_path}' is empty.")
-            config = {}
-    except yaml.YAMLError as e:
-        print(f"Error parsing configuration file '{config_path}': {e}")
-        config = {} # Reset config on error
+        config = load_config(config_path)
     except Exception as e:
-        print(f"Error reading configuration file '{config_path}': {e}")
-        config = {} # Reset config on error
+        print(f"Error loading configuration: {e}")
 
 def get_input_file_path() -> str:
     global current_chunk
@@ -78,20 +64,38 @@ def get_input_file_path() -> str:
 
     # Gets the input file path from the loaded configuration.
     default_path = 'input.xlsx' # Keep the original default
-    if not config:
-        # Don't print warning here, let calling functions handle non-existence
-        return default_path
     try:
-        path = config.get('file_settings', {}).get('input_file')
-        if not path or not isinstance(path, str):
-             # Don't print warning here, let calling functions handle non-existence
-             return default_path
-        return path
+        return config.file_settings.input_file
     except Exception as e:
         print(f"Error accessing 'input_file' from configuration: {e}. Using default.")
         return default_path
 
-load_config() # Load config when the app starts
+def get_sheet_name() -> str:
+    # Get the sheet name from configuration
+    try:
+        return config.excel_settings.sheet_name
+    except Exception as e:
+        print(f"Error accessing sheet name from configuration: {e}. Using default.")
+        return 'hadith'
+
+def get_column_name(column_key: str) -> str:
+    # Get the column name for a specific key from configuration
+    try:
+        return config.excel_settings.columns.get(column_key, column_key)
+    except Exception as e:
+        # Default fallbacks for essential columns
+        defaults = {
+            'primary_text': 'hadith_details',
+            'secondary_text': 'analysis-3',
+            'ratio': 'ratio',
+            'number': 'number',
+            'arabic_text': 'arabic_text'
+        }
+        print(f"Error accessing column name from configuration: {e}. Using default.")
+        return defaults.get(column_key, column_key)
+
+# Ensure configuration is loaded when the app starts
+reload_config()
 # --- End Configuration Loading ---
 
 def compare_text(text1, text2):
@@ -155,18 +159,22 @@ def get_cell_color_status():
         try: wb = load_workbook(input_file, read_only=True)
         except Exception: return {}
     
-    if 'hadith' not in wb.sheetnames: return {}
-    ws = wb['hadith']
+    sheet_name = get_sheet_name()
+    if sheet_name not in wb.sheetnames: return {}
+    ws = wb[sheet_name]
     
-    hadith_details_col_idx = analysis3_col_idx = None
+    primary_text_col_name = get_column_name('primary_text')
+    secondary_text_col_name = get_column_name('secondary_text')
+    
+    primary_text_col_idx = secondary_text_col_idx = None
     header_row = next(ws.rows)
     for idx, cell in enumerate(header_row):
         col_name = cell.value
-        if col_name == 'hadith_details': hadith_details_col_idx = idx
-        elif col_name == 'analysis-3': analysis3_col_idx = idx
+        if col_name == primary_text_col_name: primary_text_col_idx = idx
+        elif col_name == secondary_text_col_name: secondary_text_col_idx = idx
     
-    hadith_details_col_idx = 0 if hadith_details_col_idx is None else hadith_details_col_idx
-    analysis3_col_idx = 1 if analysis3_col_idx is None else analysis3_col_idx
+    primary_text_col_idx = 0 if primary_text_col_idx is None else primary_text_col_idx
+    secondary_text_col_idx = 1 if secondary_text_col_idx is None else secondary_text_col_idx
     
     color_status = {}
     
@@ -190,8 +198,8 @@ def get_cell_color_status():
 
     try:
         for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
-            if len(row) > max(hadith_details_col_idx, analysis3_col_idx):
-                col_a_cell, col_b_cell = row[hadith_details_col_idx], row[analysis3_col_idx]
+            if len(row) > max(primary_text_col_idx, secondary_text_col_idx):
+                col_a_cell, col_b_cell = row[primary_text_col_idx], row[secondary_text_col_idx]
                 excel_row_idx = row_idx
                 color_status[excel_row_idx] = {'col_a': False, 'col_b': False, 'col_a_type': None, 'col_b_type': None}
                 check_cell_color(col_a_cell, color_status[excel_row_idx], 'a')
@@ -207,7 +215,8 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
     change_col_exists = False
     try:
         xls = pd.ExcelFile(input_file, engine='openpyxl')
-        sheet_name = 'hadith' if 'hadith' in xls.sheet_names else xls.sheet_names[0]
+        sheet_name = get_sheet_name()
+        sheet_name = sheet_name if sheet_name in xls.sheet_names else xls.sheet_names[0]
         df = pd.read_excel(xls, sheet_name=sheet_name)
     except Exception as e:
         print(f"Error reading Excel file: {e}")
@@ -216,42 +225,48 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
             print(f"Secondary error reading Excel file: {e2}")
             return [], 0, 0, False
 
-    if 'hadith_details' not in df.columns or 'analysis-3' not in df.columns:
-        if len(df.columns) >= 2: df = df.rename(columns={df.columns[0]: 'hadith_details', df.columns[1]: 'analysis-3'})
+    primary_text_col = get_column_name('primary_text')
+    secondary_text_col = get_column_name('secondary_text')
+    ratio_col = get_column_name('ratio')
+    number_col = get_column_name('number')
+
+    if primary_text_col not in df.columns or secondary_text_col not in df.columns:
+        if len(df.columns) >= 2: df = df.rename(columns={df.columns[0]: primary_text_col, df.columns[1]: secondary_text_col})
         else: return [], 0, 0, False
 
-    if 'ratio' not in df.columns:
-        df['ratio'] = df.apply(lambda row: difflib.SequenceMatcher(
+    if ratio_col not in df.columns:
+        df[ratio_col] = df.apply(lambda row: difflib.SequenceMatcher(
             None, 
-            extract_standard_letters(str(row['hadith_details']) if pd.notna(row['hadith_details']) else ""),
-            extract_standard_letters(str(row['analysis-3']) if pd.notna(row['analysis-3']) else ""),
+            extract_standard_letters(str(row[primary_text_col]) if pd.notna(row[primary_text_col]) else ""),
+            extract_standard_letters(str(row[secondary_text_col]) if pd.notna(row[secondary_text_col]) else ""),
             autojunk=False
         ).ratio() * 100, axis=1)
         
         # Save the ratio column back to Excel file while preserving formatting
         try:
             wb = load_workbook(input_file)
-            if 'hadith' not in wb.sheetnames:
-                print("Warning: 'hadith' sheet not found in Excel file")
+            sheet_name = get_sheet_name()
+            if sheet_name not in wb.sheetnames:
+                print(f"Warning: '{sheet_name}' sheet not found in Excel file")
             else:
-                ws = wb['hadith']
+                ws = wb[sheet_name]
                 
                 # Find the last column index
                 last_col_idx = len(next(ws.rows))
                 ratio_col_letter = get_column_letter(last_col_idx + 1)
                 
                 # Add ratio header
-                ws[f'{ratio_col_letter}1'] = 'ratio'
+                ws[f'{ratio_col_letter}1'] = ratio_col
                 
                 # Add ratio values for each row
-                for idx, ratio in enumerate(df['ratio'], start=2):
+                for idx, ratio in enumerate(df[ratio_col], start=2):
                     ws[f'{ratio_col_letter}{idx}'] = ratio
                 
                 wb.save(input_file)
         except Exception as e:
             print(f"Warning: Could not save ratio column to Excel file: {e}")
 
-    number_col_exists = 'number' in df.columns # Check if 'number' column exists
+    number_col_exists = number_col in df.columns # Check if 'number' column exists
 
     if 'change' in df.columns:
         change_col_exists = True
@@ -261,23 +276,23 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
 
     # Sort by ratio based on sort_order parameter
     if sort_order == 'asc':
-        df = df.sort_values(by='ratio', ascending=True)
+        df = df.sort_values(by=ratio_col, ascending=True)
     elif sort_order == 'desc':
-        df = df.sort_values(by='ratio', ascending=False)
+        df = df.sort_values(by=ratio_col, ascending=False)
     # If sort_order is 'none', no sorting is applied - retain original order
 
     if filter_change_enabled and change_col_exists:
-        df = df.dropna(subset=['ratio'])
+        df = df.dropna(subset=[ratio_col])
         if filter_change_value is not None:
             try:
                 filter_val = float(filter_change_value)
-                df = df[df['ratio'] > filter_val]
+                df = df[df[ratio_col] > filter_val]
             except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change >': {filter_change_value}. Error: {e}")
         if filter_change_lt_value is not None:
             try:
                 filter_val = float(filter_change_lt_value)
-                df = df[df['ratio'] < filter_val]
+                df = df[df[ratio_col] < filter_val]
             except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change <': {filter_change_lt_value}. Error: {e}")
         if filter_change_from_value is not None and filter_change_to_value is not None:
@@ -285,21 +300,21 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
                 filter_from = float(filter_change_from_value)
                 filter_to = float(filter_change_to_value)
                 if filter_from <= filter_to:
-                    df = df[(df['ratio'] >= filter_from) & (df['ratio'] <= filter_to)]
+                    df = df[(df[ratio_col] >= filter_from) & (df[ratio_col] <= filter_to)]
                 else: # Handle case where user might swap from/to
-                    df = df[(df['ratio'] >= filter_to) & (df['ratio'] <= filter_from)]
+                    df = df[(df[ratio_col] >= filter_to) & (df[ratio_col] <= filter_from)]
             except (ValueError, TypeError) as e:
                 print(f"Invalid filter values for 'change between': {filter_change_from_value}-{filter_change_to_value}. Error: {e}")
         elif filter_change_from_value is not None: # Only From is specified
              try:
                 filter_from = float(filter_change_from_value)
-                df = df[df['ratio'] >= filter_from]
+                df = df[df[ratio_col] >= filter_from]
              except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change From': {filter_change_from_value}. Error: {e}")
         elif filter_change_to_value is not None: # Only To is specified
              try:
                 filter_to = float(filter_change_to_value)
-                df = df[df['ratio'] <= filter_to]
+                df = df[df[ratio_col] <= filter_to]
              except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change To': {filter_change_to_value}. Error: {e}")
 
@@ -311,24 +326,24 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
         # First try to filter by 'number' column if it exists
         if number_col_exists:
             # Convert filter_id to the same type as in the DataFrame for comparison
-            sample_type = type(df['number'].iloc[0]) if not df.empty and not pd.isna(df['number'].iloc[0]) else None
+            sample_type = type(df[number_col].iloc[0]) if not df.empty and not pd.isna(df[number_col].iloc[0]) else None
             if sample_type == int:
                 try:
                     filter_id_value = int(filter_id)
-                    df = df[df['number'] == filter_id_value]
+                    df = df[df[number_col] == filter_id_value]
                 except (ValueError, TypeError):
                     # If conversion fails, try exact string match
-                    df = df[df['number'].astype(str) == str(filter_id)]
+                    df = df[df[number_col].astype(str) == str(filter_id)]
             elif sample_type == float:
                 try:
                     filter_id_value = float(filter_id)
-                    df = df[df['number'] == filter_id_value]
+                    df = df[df[number_col] == filter_id_value]
                 except (ValueError, TypeError):
                     # If conversion fails, try exact string match
-                    df = df[df['number'].astype(str) == str(filter_id)]
+                    df = df[df[number_col].astype(str) == str(filter_id)]
             else:
                 # For any other type, use string comparison
-                df = df[df['number'].astype(str) == str(filter_id)]
+                df = df[df[number_col].astype(str) == str(filter_id)]
         
         # If number column doesn't exist or no match was found, try to filter by index
         if len(df) == 0 or not number_col_exists:
@@ -376,10 +391,10 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
 
     for i, df_idx in enumerate(original_indices):
         row = page_data.iloc[i]
-        col_a, col_b = row['hadith_details'], row['analysis-3']
+        col_a, col_b = row[primary_text_col], row[secondary_text_col]
         
         # Get the ID: Use 'number' column if it exists, otherwise fallback to df_idx
-        row_id = row['number'] if number_col_exists and 'number' in row and pd.notna(row['number']) else df_idx
+        row_id = row[number_col] if number_col_exists and number_col in row and pd.notna(row[number_col]) else df_idx
 
         if isinstance(col_a, str): col_a = col_a.replace('_x000D_', '\n').replace('\r\n', '\n').replace('\r', '\n')
         if isinstance(col_b, str): col_b = col_b.replace('_x000D_', '\n').replace('\r\n', '\n').replace('\r', '\n')
@@ -395,7 +410,7 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
             'highlighted_a': highlighted_a, 'highlighted_b': highlighted_b, 'status': status,
             'col_a_approved': row_approval['col_a'], 'col_b_approved': row_approval['col_b'],
             'col_a_type': row_approval['col_a_type'], 'col_b_type': row_approval['col_b_type'],
-            'ratio': row['ratio'] if 'ratio' in row else None
+            'ratio': row[ratio_col] if ratio_col in row else None
         })
 
     return result, total_pages, total_rows, change_col_exists
@@ -449,12 +464,13 @@ def index():
         if filter_change_gt_value is None and filter_change_lt_value is None and filter_change_from_value is None and filter_change_to_value is None:
              filter_change_enabled = False
 
-    hadith_sheet_missing = False
+    data_sheet_missing = False
     input_file = get_input_file_path() # Get path from config
     if os.path.exists(input_file): # Use configured path
         try:
             wb = load_workbook(input_file, read_only=True)
-            hadith_sheet_missing = 'hadith' not in wb.sheetnames
+            sheet_name = get_sheet_name()
+            data_sheet_missing = sheet_name not in wb.sheetnames
             wb.close()
         except Exception: pass
 
@@ -499,7 +515,7 @@ def index():
                           current_page=page,
                           rows_per_page=rows_per_page,
                           total_rows=total_rows,
-                          hadith_sheet_missing=hadith_sheet_missing,
+                          hadith_sheet_missing=data_sheet_missing,
                           filter_change_enabled=filter_change_enabled,
                           filter_change_value=filter_change_gt_value_str,
                           filter_change_lt_value=filter_change_lt_value_str,
@@ -525,28 +541,32 @@ def edit_cell():
     
     try:
         wb = load_workbook(input_file)
-        if 'hadith' not in wb.sheetnames: return jsonify({'status': 'error', 'message': 'Hadith sheet not found in Excel file'})
-        ws = wb['hadith']
+        sheet_name = get_sheet_name()
+        if sheet_name not in wb.sheetnames: return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
+        ws = wb[sheet_name]
         
         header = next(ws.rows)
-        analysis3_col_idx, hadith_details_col_idx = 1, 0
+        secondary_text_col_idx, primary_text_col_idx = 1, 0
+        
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
         
         for idx, cell in enumerate(header):
-            if cell.value == 'analysis-3':
-                analysis3_col_idx = idx
+            if cell.value == secondary_text_col_name:
+                secondary_text_col_idx = idx
+                break
+        
+        for idx, cell in enumerate(header):
+            if cell.value == primary_text_col_name:
+                primary_text_col_idx = idx
                 break
         
         excel_row = row_idx + 2
-        cell_address = f'{chr(65 + analysis3_col_idx)}{excel_row}'
+        cell_address = f'{chr(65 + secondary_text_col_idx)}{excel_row}'
         ws[cell_address].value = new_text
         wb.save(input_file)
         
-        for idx, cell in enumerate(header):
-            if cell.value == 'hadith_details':
-                hadith_details_col_idx = idx
-                break
-        
-        col_a_cell = ws[f'{chr(65 + hadith_details_col_idx)}{excel_row}']
+        col_a_cell = ws[f'{chr(65 + primary_text_col_idx)}{excel_row}']
         col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
         highlighted_a, highlighted_b, status = compare_text(col_a_text, new_text)
         
@@ -565,19 +585,24 @@ def approve_cell():
         if not os.path.exists(input_file): return jsonify({'status': 'error', 'message': 'Excel file not found'})
         
         wb = load_workbook(input_file)
-        if 'hadith' not in wb.sheetnames: return jsonify({'status': 'error', 'message': 'Hadith sheet not found in Excel file'})
+        sheet_name = get_sheet_name()
+        if sheet_name not in wb.sheetnames: return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
         
-        ws = wb['hadith']
+        ws = wb[sheet_name]
         header_row = next(ws.rows)
-        hadith_details_col_idx, analysis3_col_idx = 0, 1
+        
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
+        
+        primary_text_col_idx, secondary_text_col_idx = 0, 1
         
         for idx, cell in enumerate(header_row):
             col_name = cell.value
-            if col_name == 'hadith_details': hadith_details_col_idx = idx
-            elif col_name == 'analysis-3': analysis3_col_idx = idx
+            if col_name == primary_text_col_name: primary_text_col_idx = idx
+            elif col_name == secondary_text_col_name: secondary_text_col_idx = idx
         
         excel_row = row_idx + 2
-        column_idx = hadith_details_col_idx if column == 'a' else analysis3_col_idx
+        column_idx = primary_text_col_idx if column == 'a' else secondary_text_col_idx
         cell_address = f'{chr(65 + column_idx)}{excel_row}'
         
         colors = {'green': "00FF00", 'yellow': "FFFF00", 'red': "FFFF0000"}
@@ -600,19 +625,24 @@ def reset_cell():
     
     try:
         wb = load_workbook(input_file)
-        if 'hadith' not in wb.sheetnames: return jsonify({'status': 'error', 'message': 'Hadith sheet not found in Excel file'})
+        sheet_name = get_sheet_name()
+        if sheet_name not in wb.sheetnames: return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
         
-        ws = wb['hadith']
+        ws = wb[sheet_name]
         header_row = next(ws.rows)
-        hadith_details_col_idx, analysis3_col_idx = 0, 1
+        
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
+        
+        primary_text_col_idx, secondary_text_col_idx = 0, 1
         
         for idx, cell in enumerate(header_row):
             col_name = cell.value
-            if col_name == 'hadith_details': hadith_details_col_idx = idx
-            elif col_name == 'analysis-3': analysis3_col_idx = idx
+            if col_name == primary_text_col_name: primary_text_col_idx = idx
+            elif col_name == secondary_text_col_name: secondary_text_col_idx = idx
         
         excel_row = row_idx + 2
-        column_idx = hadith_details_col_idx if column == 'a' else analysis3_col_idx
+        column_idx = primary_text_col_idx if column == 'a' else secondary_text_col_idx
         cell_address = f'{chr(65 + column_idx)}{excel_row}'
         
         ws[cell_address].fill = PatternFill(fill_type=None)
@@ -632,10 +662,13 @@ def save_selection():
     
     try:
         wb = load_workbook(input_file)
+        sheet_name = get_sheet_name()
         
-        if 'hadith' not in wb.sheetnames:
-            ws_hadith = wb.create_sheet('hadith')
-            ws_hadith['A1'], ws_hadith['B1'] = 'hadith_details', 'analysis-3'
+        if sheet_name not in wb.sheetnames:
+            ws_data = wb.create_sheet(sheet_name)
+            primary_text_col = get_column_name('primary_text')
+            secondary_text_col = get_column_name('secondary_text')
+            ws_data['A1'], ws_data['B1'] = primary_text_col, secondary_text_col
         
         if 'words' not in wb.sheetnames:
             ws = wb.create_sheet('words')
@@ -675,21 +708,26 @@ def regenerate_cell():
             return jsonify({'status': 'error', 'message': 'Excel file not found after regeneration'})
 
         wb = load_workbook(input_file)
-        if 'hadith' not in wb.sheetnames:
-            return jsonify({'status': 'error', 'message': 'Hadith sheet not found'})
-        ws = wb['hadith']
+        sheet_name = get_sheet_name()
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
+        ws = wb[sheet_name]
 
         header = next(ws.rows)
-        analysis3_col_idx = 1
-        hadith_details_col_idx = 0
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
+        
+        secondary_text_col_idx = 1
+        primary_text_col_idx = 0
+        
         for idx, cell in enumerate(header):
-            if cell.value == 'analysis-3':
-                analysis3_col_idx = idx
-            elif cell.value == 'hadith_details':
-                hadith_details_col_idx = idx
+            if cell.value == secondary_text_col_name:
+                secondary_text_col_idx = idx
+            elif cell.value == primary_text_col_name:
+                primary_text_col_idx = idx
 
         excel_row = row_idx + 2
-        cell_address = f'{get_column_letter(analysis3_col_idx + 1)}{excel_row}'
+        cell_address = f'{get_column_letter(secondary_text_col_idx + 1)}{excel_row}'
         ws[cell_address].value = new_text
         ws[cell_address].fill = PatternFill(fill_type=None)  # Clear existing fill
 
@@ -702,7 +740,7 @@ def regenerate_cell():
         col_b_type = row_approval['col_b_type']
 
         # Get original text from Column A for comparison
-        col_a_cell = ws[f'{get_column_letter(hadith_details_col_idx + 1)}{excel_row}']
+        col_a_cell = ws[f'{get_column_letter(primary_text_col_idx + 1)}{excel_row}']
         col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
         highlighted_a, highlighted_b, status = compare_text(col_a_text, new_text)
 
@@ -735,7 +773,8 @@ def get_comment():
         return jsonify({'status': 'error', 'message': 'Excel file not found'})
     
     try:
-        df = pd.read_excel(input_file, sheet_name='hadith')
+        sheet_name = get_sheet_name()
+        df = pd.read_excel(input_file, sheet_name=sheet_name)
         
         if 'comments' not in df.columns:
             return jsonify({'comment': '', 'status': 'success'})
@@ -757,7 +796,8 @@ def save_comment():
     
     try:
         wb = load_workbook(input_file)
-        ws = wb['hadith'] if 'hadith' in wb.sheetnames else wb.active
+        sheet_name = get_sheet_name()
+        ws = wb[sheet_name] if sheet_name in wb.sheetnames else wb.active
         
         header_row = next(ws.rows)
         comments_col_idx = None
@@ -798,28 +838,31 @@ def get_arabic_text():
         try:
             # Read the Excel file
             xls = pd.ExcelFile(input_file, engine='openpyxl')
-            sheet_name = 'hadith' if 'hadith' in xls.sheet_names else xls.sheet_names[0]
+            sheet_name = get_sheet_name()
+            sheet_name = sheet_name if sheet_name in xls.sheet_names else xls.sheet_names[0]
             df = pd.read_excel(xls, sheet_name=sheet_name)
         except Exception as e:
             return jsonify({'status': 'error', 'message': f'Error reading Excel file: {str(e)}'})
         
-        # Check for Arabic column in order of preference
-        arabic_column = None
+        # Get the Arabic column name from config
+        arabic_column = get_column_name('arabic_text')
         
-        # First check for exact column name
-        if 'arabic_text' in df.columns:
-            arabic_column = 'arabic_text'
-        elif 'hadith_arabic' in df.columns:
-            arabic_column = 'hadith_arabic'
-        else:
-            # Fallback to any column with 'arabic' in the name
-            for col in df.columns:
-                if 'arabic' in str(col).lower():
-                    arabic_column = col
-                    break
+        # Check for Arabic column in order of preference
+        if arabic_column not in df.columns:
+            # First check for common Arabic column names if config value not found
+            if 'arabic_text' in df.columns:
+                arabic_column = 'arabic_text'
+            elif 'hadith_arabic' in df.columns:
+                arabic_column = 'hadith_arabic'
+            else:
+                # Fallback to any column with 'arabic' in the name
+                for col in df.columns:
+                    if 'arabic' in str(col).lower():
+                        arabic_column = col
+                        break
         
         # If still no Arabic column found, return an error
-        if arabic_column is None:
+        if arabic_column is None or arabic_column not in df.columns:
             return jsonify({
                 'status': 'error', 
                 'message': 'No Arabic text column found. Available columns: ' + ', '.join(df.columns)
@@ -872,30 +915,36 @@ def recalculate_ratios():
         return jsonify({'status': 'error', 'message': 'Excel file not found'})
         
     try:
+        # Get sheet and column names from config
+        sheet_name = get_sheet_name()
+        primary_text_col = get_column_name('primary_text')
+        secondary_text_col = get_column_name('secondary_text')
+        ratio_col = get_column_name('ratio')
+        
         # Read the Excel file
-        df = pd.read_excel(input_file, sheet_name='hadith')
+        df = pd.read_excel(input_file, sheet_name=sheet_name)
         
         # Calculate ratios for each row
-        df['ratio'] = df.apply(lambda row: difflib.SequenceMatcher(
+        df[ratio_col] = df.apply(lambda row: difflib.SequenceMatcher(
             None, 
-            extract_standard_letters(str(row['hadith_details']) if pd.notna(row['hadith_details']) else ""),
-            extract_standard_letters(str(row['analysis-3']) if pd.notna(row['analysis-3']) else ""),
+            extract_standard_letters(str(row[primary_text_col]) if pd.notna(row[primary_text_col]) else ""),
+            extract_standard_letters(str(row[secondary_text_col]) if pd.notna(row[secondary_text_col]) else ""),
             autojunk=False
         ).ratio() * 100, axis=1)
         
         # Save the updated ratios back to Excel
         wb = load_workbook(input_file)
-        if 'hadith' not in wb.sheetnames:
-            return jsonify({'status': 'error', 'message': "'hadith' sheet not found in Excel file"})
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'status': 'error', 'message': f"'{sheet_name}' sheet not found in Excel file"})
             
-        ws = wb['hadith']
+        ws = wb[sheet_name]
         
         # Find the last column index or the existing ratio column
         ratio_col_idx = None
         last_col_idx = len(next(ws.rows))
         
         for idx, cell in enumerate(next(ws.rows)):
-            if cell.value == 'ratio':
+            if cell.value == ratio_col:
                 ratio_col_idx = idx
                 break
                 
@@ -903,10 +952,10 @@ def recalculate_ratios():
         
         # Add or update ratio header if needed
         if ratio_col_idx is None:
-            ws[f'{ratio_col_letter}1'] = 'ratio'
+            ws[f'{ratio_col_letter}1'] = ratio_col
         
         # Update ratio values for each row
-        for idx, ratio in enumerate(df['ratio'], start=2):
+        for idx, ratio in enumerate(df[ratio_col], start=2):
             ws[f'{ratio_col_letter}{idx}'] = ratio
         
         wb.save(input_file)

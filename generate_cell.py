@@ -1,19 +1,21 @@
-import re
+import os
 import pandas as pd
+from typing import Tuple
 from pathlib import Path
-from typing import Optional, Tuple
 from openpyxl import load_workbook
+import re
+from config import config, load_config
 from prompt import inject_variables, read_file
 from ai import ask
-from config import config
 
 
-def extract_standard_letters(text):
-    pattern = r'[^\w\s]'
-    
-    result = re.sub(pattern, '', text, flags=re.UNICODE)
-    
-    return result
+def extract_standard_letters(text: str) -> str:
+    """Extracts standard letters from Arabic text, removing diacritics."""
+    # Remove Arabic diacritics (tashkeel)
+    text = re.sub(r'[\u064B-\u0652\u0670]', '', text)
+    # Remove non-letter characters
+    text = re.sub(r'[^\w\s]', '', text)
+    return text.strip()
 
 
 def read_row(row_idx: int, input_file: str) -> Tuple[str, str, str]:
@@ -21,9 +23,15 @@ def read_row(row_idx: int, input_file: str) -> Tuple[str, str, str]:
     if not excel_path.exists():
         raise FileNotFoundError(f"Input file '{excel_path}' not found")
     
+    # Get sheet name and column names from config
+    sheet_name = config.excel_settings.sheet_name
+    primary_text_col = config.excel_settings.columns.get('primary_text', 'hadith_details')
+    secondary_text_col = config.excel_settings.columns.get('secondary_text', 'analysis-3')
+    arabic_text_col = config.excel_settings.columns.get('arabic_text', 'arabic_text')
+    
     # Load the Excel file
     try:
-        df = pd.read_excel(excel_path, sheet_name='hadith')
+        df = pd.read_excel(excel_path, sheet_name=sheet_name)
     except Exception as e:
         raise ValueError(f"Error reading Excel file: {str(e)}")
     
@@ -32,9 +40,9 @@ def read_row(row_idx: int, input_file: str) -> Tuple[str, str, str]:
         raise ValueError(f"Row index {row_idx} out of bounds (0-{len(df)-1})")
     
     # Get the required data
-    hadith_details = df.loc[row_idx, 'hadith_details'] if 'hadith_details' in df.columns else ""
-    arabic_text = df.loc[row_idx, 'arabic_text'] if 'arabic_text' in df.columns else ""
-    current_analysis = df.loc[row_idx, 'analysis-3'] if 'analysis-3' in df.columns else ""
+    hadith_details = df.loc[row_idx, primary_text_col] if primary_text_col in df.columns else ""
+    arabic_text = df.loc[row_idx, arabic_text_col] if arabic_text_col in df.columns else ""
+    current_analysis = df.loc[row_idx, secondary_text_col] if secondary_text_col in df.columns else ""
     
     return arabic_text, hadith_details, current_analysis
 
@@ -54,27 +62,31 @@ def save_to_excel(row_idx: int, new_text: str, input_file: str, output_file: str
     excel_path = Path(input_file)
     output_path = Path(output_file) if output_file else excel_path
     
+    # Get sheet name and column names from config
+    sheet_name = config.excel_settings.sheet_name
+    secondary_text_col = config.excel_settings.columns.get('secondary_text', 'analysis-3')
+    
     try:
         # Try with openpyxl first to preserve formatting
         wb = load_workbook(excel_path)
-        if 'hadith' not in wb.sheetnames:
-            raise ValueError("'hadith' sheet not found in Excel file")
+        if sheet_name not in wb.sheetnames:
+            raise ValueError(f"'{sheet_name}' sheet not found in Excel file")
         
-        ws = wb['hadith']
+        ws = wb[sheet_name]
         
         # Find the analysis-3 column index
-        analysis3_col_idx = None
+        secondary_text_col_idx = None
         for idx, cell in enumerate(next(ws.rows)):
-            if cell.value == 'analysis-3':
-                analysis3_col_idx = idx
+            if cell.value == secondary_text_col:
+                secondary_text_col_idx = idx
                 break
         
-        if analysis3_col_idx is None:
-            analysis3_col_idx = 6  # Default to column G
+        if secondary_text_col_idx is None:
+            secondary_text_col_idx = 6  # Default to column G
         
         # Calculate Excel row (add 2 to account for 0-based index and header row)
         excel_row = row_idx + 2
-        col_letter = chr(65 + analysis3_col_idx)
+        col_letter = chr(65 + secondary_text_col_idx)
         cell_address = f'{col_letter}{excel_row}'
         
         # Update the cell
@@ -87,10 +99,10 @@ def save_to_excel(row_idx: int, new_text: str, input_file: str, output_file: str
         
         # Fallback to pandas
         try:
-            df = pd.read_excel(excel_path, sheet_name='hadith')
+            df = pd.read_excel(excel_path, sheet_name=sheet_name)
             
-            if 'analysis-3' in df.columns:
-                df.loc[row_idx, 'analysis-3'] = new_text
+            if secondary_text_col in df.columns:
+                df.loc[row_idx, secondary_text_col] = new_text
             else:
                 if len(df.columns) <= 6:
                     # Add columns if needed
@@ -98,7 +110,7 @@ def save_to_excel(row_idx: int, new_text: str, input_file: str, output_file: str
                         df[f"Column_{len(df.columns)}"] = ""
                 df.iloc[row_idx, 6] = new_text
             
-            df.to_excel(output_path, sheet_name='hadith', index=False)
+            df.to_excel(output_path, sheet_name=sheet_name, index=False)
             return True
             
         except Exception as e2:
