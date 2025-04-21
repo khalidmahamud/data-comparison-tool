@@ -1,7 +1,7 @@
 from google import generativeai as genai
 from google.generativeai.types import GenerationConfigType
 import time
-from config import config
+from src.config import config
 
 flash = config.api_settings["gemini_flash_1"]
 
