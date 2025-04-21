@@ -7,8 +7,8 @@ from urllib.parse import urlencode
 import uuid
 import yaml
 from pathlib import Path
-from generate_cell import generate, extract_standard_letters
-from config import config, load_config
+from src.generate_cell import generate, extract_standard_letters
+from src.config import config, load_config
 
 app = Flask(__name__)
 

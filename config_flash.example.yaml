@@ -25,6 +25,8 @@ file_settings:
   prompts_file: "prompts.txt"
   chunks_directory: "chunks"
   merged_file: "merged_output.xlsx"
+  rows_per_chunk: 500
+  action: "merge" # Options: "split" or "merge"
 
 excel_settings:
   sheet_name: "hadith"

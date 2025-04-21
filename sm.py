@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Border, Side, Alignment, Protection
 from copy import copy
-from config import config
+from src.config import config
 
 def copy_cell_style(source_cell, target_cell):
     """

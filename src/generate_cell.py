@@ -4,9 +4,9 @@ from typing import Tuple
 from pathlib import Path
 from openpyxl import load_workbook
 import re
-from config import config, load_config
-from prompt import inject_variables, read_file
-from ai import ask
+from src.config import config, load_config
+from src.prompt import inject_variables, read_file
+from src.ai import ask
 
 
 def extract_standard_letters(text: str) -> str:
