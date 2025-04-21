@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import re
-import sys
 import argparse
 from openpyxl import load_workbook
 from config import config
