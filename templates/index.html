@@ -258,8 +258,6 @@
         
         <!-- Theme Switch -->
         
-        <!-- Combined Filter Section -->
-        {% if change_col_exists %}
         <div class="sidebar-section filter-section">
             <form action="/" method="get" id="combined-filter-form">
                 <input type="hidden" name="page" value="1">
@@ -334,12 +332,6 @@
                 <button id="recalculate-ratio-btn" class="btn-apply-filter">Recalculate Ratios</button>
             </div>
         </div>
-        {% else %}
-        <div class="sidebar-section filter-section">
-            <p><i>'change' column not found in Excel sheet. Filter unavailable.</i></p>
-        </div>
-        <hr>
-        {% endif %}
     </div>
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
