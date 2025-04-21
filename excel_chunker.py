@@ -230,42 +230,70 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     # Calculate total rows for progress reporting
     total_rows = sum(chunk['row_count'] for chunk in chunk_files)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Total rows to process: {total_rows}")
-    
-    # Load the first chunk as our base workbook
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Loading first chunk: {chunk_files[0]['filename']}")
-    first_chunk = load_workbook(chunk_files[0]['filename'])
-    
-    # Get the sheet from configuration
+
+    # Get the sheet name from configuration
     sheet_name = config.excel_settings.sheet_name
-    if sheet_name not in first_chunk.sheetnames:
-        sheet_name = first_chunk.sheetnames[0]
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Configured sheet '{config.excel_settings.sheet_name}' not found in first chunk. Using '{sheet_name}' instead.")
     
-    first_chunk_ws = first_chunk[sheet_name]
+    # Step 1: Collect all unique headers from all chunks
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Collecting all unique headers from all chunks")
+    all_headers = {}  # Dictionary to store column name -> column index mapping
     
-    # Validate first chunk columns
-    is_valid, missing_columns, has_ratio = validate_columns(first_chunk_ws)
-    if not is_valid:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Error: Missing required columns in first chunk: {', '.join(missing_columns)}")
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Required columns: {config.excel_settings.columns.get('primary_text', 'hadith_details')}, {config.excel_settings.columns.get('secondary_text', 'analysis-3')}")
-        return None
+    for i, chunk_info in enumerate(chunk_files):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Reading headers from chunk {i+1}/{len(chunk_files)}")
+        chunk_wb = load_workbook(chunk_info['filename'])
+        
+        # Verify the sheet exists in this chunk
+        if sheet_name not in chunk_wb.sheetnames:
+            # Try to use the first sheet if the configured sheet isn't found
+            if len(chunk_wb.sheetnames) > 0:
+                sheet_name_in_chunk = chunk_wb.sheetnames[0]
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Sheet '{sheet_name}' not found in chunk {i+1}. Using '{sheet_name_in_chunk}' instead.")
+                sheet_name = sheet_name_in_chunk if i == 0 else sheet_name  # Update the sheet name only from the first chunk
+            else:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: No sheets found in chunk {i+1}. Skipping chunk.")
+                continue
+        
+        chunk_ws = chunk_wb[sheet_name if sheet_name in chunk_wb.sheetnames else chunk_wb.sheetnames[0]]
+        
+        # Extract headers from the first row
+        for col_idx in range(1, chunk_ws.max_column + 1):
+            cell = chunk_ws.cell(row=1, column=col_idx)
+            if cell.value and cell.value not in all_headers:
+                # Add this header to our collection (preserving its position in header row)
+                all_headers[cell.value] = len(all_headers) + 1  # 1-based index for columns
     
-    if not has_ratio:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Optional ratio column '{config.excel_settings.columns.get('ratio', 'ratio')}' not found in first chunk. It will need to be calculated after merge.")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Found {len(all_headers)} unique column headers across all chunks")
     
     # Create a new workbook for the merged data
     merged_wb = Workbook()
     merged_ws = merged_wb.active
     merged_ws.title = sheet_name
     
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Copying column dimensions and styles")
-    # Copy column dimensions from first chunk
+    # Step 2: Create the header row in the merged workbook with all unique headers
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Creating header row with all unique columns")
+    for header, col_idx in all_headers.items():
+        merged_ws.cell(row=1, column=col_idx).value = header
+    
+    # Load the first chunk for column styling
+    first_chunk_wb = load_workbook(chunk_files[0]['filename'])
+    first_chunk_ws = first_chunk_wb[sheet_name if sheet_name in first_chunk_wb.sheetnames else first_chunk_wb.sheetnames[0]]
+    
+    # Copy column dimensions from first chunk (for available columns)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Copying available column dimensions and styles")
     for col_letter, column_dimension in first_chunk_ws.column_dimensions.items():
         merged_ws.column_dimensions[col_letter].width = column_dimension.width
         merged_ws.column_dimensions[col_letter].hidden = column_dimension.hidden
     
-    # Current row in the merged worksheet (start at 1)
-    current_row = 1
+    # Copy header cell styles from first chunk (where available)
+    for col_idx in range(1, first_chunk_ws.max_column + 1):
+        source_cell = first_chunk_ws.cell(row=1, column=col_idx)
+        if source_cell.value in all_headers:
+            target_col_idx = all_headers[source_cell.value]
+            target_cell = merged_ws.cell(row=1, column=target_col_idx)
+            copy_cell_style(source_cell, target_cell)
+    
+    # Current row in the merged worksheet (start at 2, after the header)
+    current_row = 2
     rows_processed = 0
     last_progress_report = 0
     
@@ -279,26 +307,28 @@ def merge_excel(chunk_dir='chunks', output_file=None):
         
         # Verify the sheet exists in this chunk
         if sheet_name not in chunk_wb.sheetnames:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Sheet '{sheet_name}' not found in chunk {i+1}. Skipping chunk.")
-            continue
-            
-        chunk_ws = chunk_wb[sheet_name]
-        
-        # Validate this chunk's columns (only for chunks after the first one)
-        if i > 0:
-            is_valid, missing_columns, _ = validate_columns(chunk_ws)
-            if not is_valid:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Missing required columns in chunk {i+1}: {', '.join(missing_columns)}. Skipping chunk.")
+            if len(chunk_wb.sheetnames) > 0:
+                chunk_sheet = chunk_wb.sheetnames[0]
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Sheet '{sheet_name}' not found in chunk {i+1}. Using '{chunk_sheet}' instead.")
+            else:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: No sheets found in chunk {i+1}. Skipping chunk.")
                 continue
+                
+        chunk_ws = chunk_wb[sheet_name if sheet_name in chunk_wb.sheetnames else chunk_wb.sheetnames[0]]
         
-        # For the first chunk, include all rows (including header)
-        start_row = 1 if i == 0 else 2  # Skip header for all but first chunk
+        # Create a mapping between column indices in the chunk and the merged workbook
+        column_mapping = {}  # {chunk_col_idx: merged_col_idx}
+        for col_idx in range(1, chunk_ws.max_column + 1):
+            header_value = chunk_ws.cell(row=1, column=col_idx).value
+            if header_value in all_headers:
+                column_mapping[col_idx] = all_headers[header_value]
         
-        rows_in_chunk = chunk_ws.max_row - (start_row - 1)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Processing {rows_in_chunk} rows from chunk {i+1}")
+        # Skip the header row, we already created a complete header row
+        rows_in_chunk = chunk_ws.max_row - 1  # Subtract header
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Processing {rows_in_chunk} data rows from chunk {i+1}")
         
-        # Copy rows from chunk to merged workbook (with or without header based on chunk number)
-        for row_idx in range(start_row, chunk_ws.max_row + 1):
+        # Copy data rows from chunk to merged workbook (skip header)
+        for row_idx in range(2, chunk_ws.max_row + 1):
             rows_processed += 1
             
             # Report progress every 10% of total rows
@@ -307,15 +337,15 @@ def merge_excel(chunk_dir='chunks', output_file=None):
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Merge progress: {progress_percent:.1f}% ({rows_processed}/{total_rows} rows)")
                 last_progress_report = progress_percent // 10 * 10
             
-            # Copy row dimensions
+            # Copy row dimensions if available
             if row_idx in chunk_ws.row_dimensions:
                 merged_ws.row_dimensions[current_row].height = chunk_ws.row_dimensions[row_idx].height
                 merged_ws.row_dimensions[current_row].hidden = chunk_ws.row_dimensions[row_idx].hidden
             
-            # Copy cell values and styles
-            for col_idx in range(1, chunk_ws.max_column + 1):
-                source_cell = chunk_ws.cell(row=row_idx, column=col_idx)
-                target_cell = merged_ws.cell(row=current_row, column=col_idx)
+            # Copy cell values and styles using column mapping
+            for chunk_col_idx, merged_col_idx in column_mapping.items():
+                source_cell = chunk_ws.cell(row=row_idx, column=chunk_col_idx)
+                target_cell = merged_ws.cell(row=current_row, column=merged_col_idx)
                 
                 # Copy value and style
                 target_cell.value = source_cell.value
@@ -340,9 +370,8 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Merging completed in {total_time:.2f} seconds")
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Average time per row: {total_time/(current_row-1):.4f} seconds")
     
-    # Inform if ratio column was missing
-    if not has_ratio:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Note: The ratio column was not present in the chunks. You may need to recalculate ratios.")
+    # Print summary of columns
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Merged file contains {len(all_headers)} columns")
     
     return output_file
 
