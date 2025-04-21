@@ -2,6 +2,8 @@
 import os
 import re
 import argparse
+import time
+from datetime import datetime
 from openpyxl import load_workbook
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Border, Side, Alignment, Protection
@@ -33,13 +35,18 @@ def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
     Returns:
         list: List of generated chunk files
     """
+    start_time = time.time()
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Excel file splitting process")
+    
     # Ensure output directory exists
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
     # Load the workbook once
-    print(f"Loading workbook: {input_file}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Loading workbook: {input_file}")
     wb = load_workbook(input_file)
+    load_time = time.time()
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Workbook loaded in {load_time - start_time:.2f} seconds")
     
     # Get the active sheet (or first sheet)
     sheet_name = 'hadith' if 'hadith' in wb.sheetnames else wb.sheetnames[0]
@@ -51,17 +58,21 @@ def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
     # Calculate number of chunks needed
     num_chunks = (total_rows + rows_per_chunk - 1) // rows_per_chunk
     
-    print(f"Total rows: {total_rows}")
-    print(f"Rows per chunk: {rows_per_chunk}")
-    print(f"Number of chunks: {num_chunks}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Processing sheet: {sheet_name}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Total rows: {total_rows}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Rows per chunk: {rows_per_chunk}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Number of chunks: {num_chunks}")
     
     chunk_files = []
     
     # Process each chunk
     for chunk_idx in range(num_chunks):
+        chunk_start_time = time.time()
         # Calculate row range for this chunk
         start_row = chunk_idx * rows_per_chunk + 2  # +2 because row 1 is header, and we want to start from row 2
         end_row = min((chunk_idx + 1) * rows_per_chunk + 1, total_rows + 1)  # +1 because row 1 is the header
+        
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Creating chunk {chunk_idx+1}/{num_chunks} with rows {start_row-1}-{end_row-1}")
         
         # Create a new workbook for the chunk
         chunk_wb = Workbook()
@@ -74,6 +85,7 @@ def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
             chunk_ws.column_dimensions[col_letter].hidden = column_dimension.hidden
         
         # Add header row first
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Copying header row with styles")
         for col_idx in range(1, ws.max_column + 1):
             source_cell = ws.cell(row=1, column=col_idx)
             target_cell = chunk_ws.cell(row=1, column=col_idx)
@@ -83,7 +95,18 @@ def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
             copy_cell_style(source_cell, target_cell)
         
         # Copy only the rows needed for this chunk with styles
-        for dest_row, source_row in enumerate(range(start_row, end_row + 1), 2):
+        row_count = end_row - start_row + 1
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Copying {row_count} data rows with styles")
+        
+        # Show progress for large chunks
+        progress_interval = max(1, row_count // 10)
+        
+        for i, (dest_row, source_row) in enumerate(zip(range(2, row_count + 2), range(start_row, end_row + 1))):
+            # Show progress for large chunks
+            if i % progress_interval == 0 and i > 0:
+                percent_done = (i / row_count) * 100
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Progress: {percent_done:.1f}% ({i}/{row_count} rows)")
+            
             # Also copy row dimensions
             if source_row in ws.row_dimensions:
                 chunk_ws.row_dimensions[dest_row].height = ws.row_dimensions[source_row].height
@@ -102,11 +125,17 @@ def split_excel(input_file, output_dir='chunks', rows_per_chunk=500):
         chunk_path = os.path.join(output_dir, chunk_filename)
         
         # Save the chunk
-        print(f"Saving chunk {chunk_idx+1}/{num_chunks}: {chunk_path}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Saving chunk {chunk_idx+1}/{num_chunks}: {chunk_path}")
         chunk_wb.save(chunk_path)
         chunk_files.append(chunk_path)
+        
+        chunk_end_time = time.time()
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Chunk {chunk_idx+1} completed in {chunk_end_time - chunk_start_time:.2f} seconds")
     
-    print(f"Splitting complete. Created {len(chunk_files)} chunks.")
+    end_time = time.time()
+    total_time = end_time - start_time
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Splitting complete. Created {len(chunk_files)} chunks in {total_time:.2f} seconds")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Average time per chunk: {total_time/len(chunk_files):.2f} seconds")
     return chunk_files
 
 def merge_excel(chunk_dir='chunks', output_file=None):
@@ -120,10 +149,14 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     Returns:
         str: Path to the merged file
     """
+    start_time = time.time()
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Excel file merging process")
+    
     # Find all chunk files
     chunk_files = []
     chunk_pattern = re.compile(r'chunk_(\d+)_rows_(\d+)-(\d+)\.xlsx')
     
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Scanning directory for chunk files: {chunk_dir}")
     for filename in os.listdir(chunk_dir):
         if chunk_pattern.match(filename):
             chunk_match = chunk_pattern.match(filename)
@@ -135,18 +168,25 @@ def merge_excel(chunk_dir='chunks', output_file=None):
                 'filename': os.path.join(chunk_dir, filename),
                 'chunk_num': chunk_num,
                 'start_row': start_row,
-                'end_row': end_row
+                'end_row': end_row,
+                'row_count': end_row - start_row + 1
             })
     
     # Sort by chunk number
     chunk_files.sort(key=lambda x: x['chunk_num'])
     
     if not chunk_files:
-        print("No chunk files found")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] No chunk files found")
         return None
     
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Found {len(chunk_files)} chunk files to merge")
+    
+    # Calculate total rows for progress reporting
+    total_rows = sum(chunk['row_count'] for chunk in chunk_files)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Total rows to process: {total_rows}")
+    
     # Load the first chunk as our base workbook
-    print(f"Loading first chunk: {chunk_files[0]['filename']}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Loading first chunk: {chunk_files[0]['filename']}")
     first_chunk = load_workbook(chunk_files[0]['filename'])
     sheet_name = 'hadith' if 'hadith' in first_chunk.sheetnames else first_chunk.sheetnames[0]
     first_chunk_ws = first_chunk[sheet_name]
@@ -156,6 +196,7 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     merged_ws = merged_wb.active
     merged_ws.title = sheet_name
     
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Copying column dimensions and styles")
     # Copy column dimensions from first chunk
     for col_letter, column_dimension in first_chunk_ws.column_dimensions.items():
         merged_ws.column_dimensions[col_letter].width = column_dimension.width
@@ -163,20 +204,34 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     
     # Current row in the merged worksheet (start at 1)
     current_row = 1
+    rows_processed = 0
+    last_progress_report = 0
     
     # Process all chunks
-    for chunk_info in chunk_files:
-        print(f"Processing chunk {chunk_info['chunk_num']}/{len(chunk_files)}: {chunk_info['filename']}")
+    for i, chunk_info in enumerate(chunk_files):
+        chunk_start_time = time.time()
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Processing chunk {i+1}/{len(chunk_files)}: {chunk_info['filename']}")
         
         # Load the chunk
         chunk_wb = load_workbook(chunk_info['filename'])
         chunk_ws = chunk_wb[sheet_name]
         
         # For the first chunk, include all rows (including header)
-        start_row = 1 if chunk_info['chunk_num'] == 1 else 2  # Skip header for all but first chunk
+        start_row = 1 if i == 0 else 2  # Skip header for all but first chunk
+        
+        rows_in_chunk = chunk_ws.max_row - (start_row - 1)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Processing {rows_in_chunk} rows from chunk {i+1}")
         
         # Copy rows from chunk to merged workbook (with or without header based on chunk number)
         for row_idx in range(start_row, chunk_ws.max_row + 1):
+            rows_processed += 1
+            
+            # Report progress every 10% of total rows
+            progress_percent = (rows_processed / total_rows) * 100
+            if progress_percent - last_progress_report >= 10:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Merge progress: {progress_percent:.1f}% ({rows_processed}/{total_rows} rows)")
+                last_progress_report = progress_percent // 10 * 10
+            
             # Copy row dimensions
             if row_idx in chunk_ws.row_dimensions:
                 merged_ws.row_dimensions[current_row].height = chunk_ws.row_dimensions[row_idx].height
@@ -192,15 +247,24 @@ def merge_excel(chunk_dir='chunks', output_file=None):
                 copy_cell_style(source_cell, target_cell)
             
             current_row += 1
+        
+        chunk_end_time = time.time()
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Chunk {i+1} processed in {chunk_end_time - chunk_start_time:.2f} seconds")
     
     # Save the merged workbook
     if output_file is None:
         output_file = 'merged_output.xlsx'
     
-    print(f"Saving merged file: {output_file}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Saving merged file: {output_file}")
     merged_wb.save(output_file)
     
-    print(f"Merge complete. Total rows: {current_row - 1}")  # -1 since current_row is one-past the last row
+    end_time = time.time()
+    total_time = end_time - start_time
+    
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Merge complete. Total rows: {current_row - 1}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Merging completed in {total_time:.2f} seconds")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Average time per row: {total_time/(current_row-1):.4f} seconds")
+    
     return output_file
 
 def main():
