@@ -27,6 +27,8 @@ class FileSettings:
     prompts_file: str
     chunks_directory: str
     merged_file: str
+    rows_per_chunk: int = 1000
+    action: str = "split"
 
 
 @dataclass

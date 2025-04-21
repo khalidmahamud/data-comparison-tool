@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import re
-import argparse
+import sys
 import time
 from datetime import datetime
 from openpyxl import load_workbook
@@ -347,21 +347,31 @@ def merge_excel(chunk_dir='chunks', output_file=None):
     return output_file
 
 def main():
-    parser = argparse.ArgumentParser(description='Split and merge Excel files')
-    parser.add_argument('--action', choices=['split', 'merge'], required=True, help='Action to perform (split or merge)')
-    parser.add_argument('--input', help='Input Excel file to split', default=config.file_settings.input_file)
-    parser.add_argument('--output', help='Output file or directory', default=config.file_settings.merged_file)
-    parser.add_argument('--chunk-dir', default=config.file_settings.chunks_directory, help='Directory for chunks')
-    parser.add_argument('--rows', type=int, default=500, help='Rows per chunk (default: 500)')
+    # Use values directly from config file instead of command-line arguments
+    input_file = config.file_settings.input_file
+    chunk_dir = config.file_settings.chunks_directory
+    output_file = config.file_settings.merged_file
+    rows_per_chunk = 500  # Default value
     
-    args = parser.parse_args()
+    # Check if processing config has rows_per_chunk setting
+    if hasattr(config.file_settings, 'rows_per_chunk'):
+        rows_per_chunk = config.file_settings.rows_per_chunk
     
-    if args.action == 'split':
-        split_excel(args.input, args.chunk_dir, args.rows)
-        
-    elif args.action == 'merge':
-        chunk_dir = args.chunk_dir
-        output_file = args.output
+    # Get action from config file
+    action = "split"  # Default action
+    if hasattr(config.file_settings, 'action'):
+        action = config.file_settings.action.lower()
+    
+    # Validate action
+    if action not in ['split', 'merge']:
+        print(f"Error: Invalid action '{action}' in config. Choose 'split' or 'merge'")
+        sys.exit(1)
+    
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Running with action: {action}")
+    
+    if action == 'split':
+        split_excel(input_file, chunk_dir, rows_per_chunk)
+    elif action == 'merge':
         merge_excel(chunk_dir, output_file)
 
 if __name__ == '__main__':
