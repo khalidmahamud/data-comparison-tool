@@ -1562,10 +1562,6 @@ input:checked + .slider:before {
   color: #2a9d8f; /* Teal for Bangla */
 }
 
-.generate-bangla-btn.active i {
-  color: #006f3c; /* Green for newly generated Bangla */
-}
-
 [data-theme="dark"] .show-arabic-btn,
 [data-theme="dark"] .show-bangla-btn,
 [data-theme="dark"] .generate-bangla-btn {

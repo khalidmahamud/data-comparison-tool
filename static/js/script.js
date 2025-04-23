@@ -972,15 +972,20 @@ function showArabicText(button) {
   const showBanglaBtn = cellContainer.querySelector(".show-bangla-btn");
   const generateBanglaBtn = cellContainer.querySelector(".generate-bangla-btn");
 
-  if (showBanglaBtn) showBanglaBtn.classList.remove("active");
+  if (showBanglaBtn) {
+    showBanglaBtn.classList.remove("active");
+    // Reset Bangla button icon
+    showBanglaBtn.querySelector("i").textContent = "spellcheck";
+  }
   if (generateBanglaBtn) generateBanglaBtn.classList.remove("active");
 
   // If button is already active, show original content
   if (button.classList.contains("active")) {
     if (contentDiv.hasAttribute("data-original-content")) {
       contentDiv.innerHTML = contentDiv.getAttribute("data-original-content");
-      button.querySelector("i").textContent = "translate";
       button.classList.remove("active");
+      // Change icon back to translate for Arabic
+      button.querySelector("i").textContent = "translate";
     }
     return;
   }
@@ -1000,6 +1005,7 @@ function showArabicText(button) {
       if (data.status === "success") {
         contentDiv.innerHTML = data.arabic_text.replace(/\n/g, "<br>");
         button.classList.add("active");
+        // Change icon to description for Arabic
         button.querySelector("i").textContent = "description";
 
         // Save Arabic content for future use
@@ -1043,6 +1049,17 @@ function showBanglaText(button) {
     if (contentDiv.hasAttribute("data-original-content")) {
       contentDiv.innerHTML = contentDiv.getAttribute("data-original-content");
       button.classList.remove("active");
+      // Reset icon to default spellcheck
+      button.querySelector("i").textContent = "spellcheck";
+
+      // Reset all buttons to inactive state to clearly indicate we're showing original content
+      if (showArabicBtn) {
+        showArabicBtn.classList.remove("active");
+        showArabicBtn.querySelector("i").textContent = "translate";
+      }
+      if (generateBanglaBtn) {
+        generateBanglaBtn.classList.remove("active");
+      }
     }
     return;
   }
@@ -1056,6 +1073,16 @@ function showBanglaText(button) {
 
     contentDiv.innerHTML = contentDiv.getAttribute("data-bangla-content");
     button.classList.add("active");
+
+    // Change icon based on the source of Bangla content
+    const banglaSource = contentDiv.getAttribute("data-bangla-source");
+    if (banglaSource === "ai") {
+      // AI-translated content
+      button.querySelector("i").textContent = "auto_stories";
+    } else {
+      // Original or manually translated Bangla content
+      button.querySelector("i").textContent = "translate";
+    }
   } else {
     // If no Bangla translation exists yet, generate one
     generateBanglaText(cellContainer.querySelector(".generate-bangla-btn"));
@@ -1074,16 +1101,31 @@ function generateBanglaText(button) {
   const cellContainer = button.closest(".cell-container");
   const contentDiv = cellContainer.querySelector(".cell-content");
 
-  // Reset other buttons
+  // Reset all button states to ensure clear starting point
   const showArabicBtn = cellContainer.querySelector(".show-arabic-btn");
   const showBanglaBtn = cellContainer.querySelector(".show-bangla-btn");
 
-  if (showArabicBtn) {
-    showArabicBtn.classList.remove("active");
-    // Reset Arabic button icon
-    showArabicBtn.querySelector("i").textContent = "translate";
+  // If button is already active, toggle back to original content
+  if (button.classList.contains("active")) {
+    if (contentDiv.hasAttribute("data-original-content")) {
+      // Restore original content
+      contentDiv.innerHTML = contentDiv.getAttribute("data-original-content");
+
+      // Reset all button states
+      button.classList.remove("active");
+
+      if (showArabicBtn) {
+        showArabicBtn.classList.remove("active");
+        showArabicBtn.querySelector("i").textContent = "translate";
+      }
+
+      if (showBanglaBtn) {
+        showBanglaBtn.classList.remove("active");
+        showBanglaBtn.querySelector("i").textContent = "spellcheck";
+      }
+    }
+    return;
   }
-  if (showBanglaBtn) showBanglaBtn.classList.remove("active");
 
   // Save original content if not already saved
   if (!contentDiv.hasAttribute("data-original-content")) {
@@ -1093,7 +1135,12 @@ function generateBanglaText(button) {
   // Get the actual row value (adjust for Excel row numbering)
   const actualRow = parseInt(row) + 2;
 
-  // Show loading state
+  // Show loading spinner and disable button
+  const originalContent = button.innerHTML;
+  button.innerHTML = '<span class="loading-spinner"></span>';
+  button.disabled = true;
+
+  // Show loading notification
   showNotification("Translating to Bangla...", "info");
 
   // Fetch AI-translated Bangla text
@@ -1101,14 +1148,25 @@ function generateBanglaText(button) {
     .then((response) => response.json())
     .then((data) => {
       if (data.status === "success") {
+        // Update content
         contentDiv.innerHTML = data.translated_bangla.replace(/\n/g, "<br>");
-        button.classList.add("active");
 
         // Save Bangla content for future use
         contentDiv.setAttribute("data-bangla-content", contentDiv.innerHTML);
+        contentDiv.setAttribute("data-bangla-source", "ai"); // Mark as AI-generated
 
-        // Also make the show Bangla button usable now
+        // Reset all button states first
+        if (showArabicBtn) {
+          showArabicBtn.classList.remove("active");
+          showArabicBtn.querySelector("i").textContent = "translate";
+        }
+
+        // Set button states to show we're displaying AI-translated Bangla
+        button.classList.add("active");
+
         if (showBanglaBtn) {
+          showBanglaBtn.classList.add("active");
+          showBanglaBtn.querySelector("i").textContent = "auto_stories";
           showBanglaBtn.setAttribute("data-has-translation", "true");
         }
 
@@ -1121,6 +1179,11 @@ function generateBanglaText(button) {
     .catch((error) => {
       console.error("Error fetching Bangla translation:", error);
       showNotification("Error fetching Bangla translation", "error");
+    })
+    .finally(() => {
+      // Restore button's original appearance when done
+      button.innerHTML = originalContent;
+      button.disabled = false;
     });
 }
 
