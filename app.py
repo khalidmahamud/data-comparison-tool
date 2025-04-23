@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 import uuid
 import yaml
 from pathlib import Path
+from src.ai import ask
 from src.generate_cell import generate, extract_standard_letters
 from src.config import config, load_config
 
@@ -965,8 +966,8 @@ def translate_arabic_to_bangla():
         })
 
         # Call the AI model for translation
-        from src.ai import ask
-        translated_text = ask(query).strip()
+       
+        translated_text = ask(query).text.strip()
 
         return jsonify({
             'status': 'success',

@@ -52,10 +52,8 @@ def ask(query: str, config: GenerationConfigType | None = {}):
   if config is None:
     config = {}
 
-  print(f"Executing AI query: {query[:100]}...")  # Log the query (truncated for brevity)
-
-  response = client.generate_content(
+  return client.generate_content(
       contents=query,
       generation_config={"max_output_tokens": flash.max_tokens, **config}
   )
-  return response.text
+
