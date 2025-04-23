@@ -1034,7 +1034,7 @@ function showBanglaText(button) {
   if (showArabicBtn) {
     showArabicBtn.classList.remove("active");
     // Reset Arabic button icon
-    showArabicBtn.querySelector("i").textContent = "g_translate";
+    showArabicBtn.querySelector("i").textContent = "translate";
   }
   if (generateBanglaBtn) generateBanglaBtn.classList.remove("active");
 
@@ -1081,7 +1081,7 @@ function generateBanglaText(button) {
   if (showArabicBtn) {
     showArabicBtn.classList.remove("active");
     // Reset Arabic button icon
-    showArabicBtn.querySelector("i").textContent = "g_translate";
+    showArabicBtn.querySelector("i").textContent = "translate";
   }
   if (showBanglaBtn) showBanglaBtn.classList.remove("active");
 
