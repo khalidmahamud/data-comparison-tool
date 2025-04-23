@@ -804,18 +804,27 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup diff highlighting for all rows
   document.querySelectorAll("tbody tr").forEach(setupDiffHighlighting);
 
-  // Add event listeners for toggle and translate buttons
-  document.querySelectorAll(".toggle-arabic-btn").forEach((btn) => {
+  // Setup Arabic button click
+  document.querySelectorAll(".show-arabic-btn").forEach((btn) => {
     btn.addEventListener("click", function (event) {
       event.stopPropagation();
-      toggleArabicText(event.currentTarget);
+      showArabicText(event.currentTarget);
     });
   });
 
-  document.querySelectorAll(".translate-bangla-btn").forEach((btn) => {
+  // Setup show Bangla button click
+  document.querySelectorAll(".show-bangla-btn").forEach((btn) => {
     btn.addEventListener("click", function (event) {
       event.stopPropagation();
-      translateToBangla(event.currentTarget);
+      showBanglaText(event.currentTarget);
+    });
+  });
+
+  // Setup generate Bangla button click
+  document.querySelectorAll(".generate-bangla-btn").forEach((btn) => {
+    btn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      generateBanglaText(event.currentTarget);
     });
   });
 });
@@ -947,103 +956,124 @@ function setupSidebar() {
   });
 }
 
-// Modified toggleArabicText to handle state transitions
-function toggleArabicText(button) {
-  console.log("Toggle Arabic for button:", button);
+// Show Arabic text for a cell
+function showArabicText(button) {
   const row = button.getAttribute("data-row");
   if (!row) {
-    console.error("No row index found on toggle button");
+    console.error("No row index found on button");
     showNotification("Error: Missing row index", "error");
     return;
   }
 
-  console.log("Toggle Arabic for row:", row);
+  const cellContainer = button.closest(".cell-container");
+  const contentDiv = cellContainer.querySelector(".cell-content");
+
+  // Reset other buttons
+  const showBanglaBtn = cellContainer.querySelector(".show-bangla-btn");
+  const generateBanglaBtn = cellContainer.querySelector(".generate-bangla-btn");
+
+  if (showBanglaBtn) showBanglaBtn.classList.remove("active");
+  if (generateBanglaBtn) generateBanglaBtn.classList.remove("active");
+
+  // If button is already active, show original content
+  if (button.classList.contains("active")) {
+    if (contentDiv.hasAttribute("data-original-content")) {
+      contentDiv.innerHTML = contentDiv.getAttribute("data-original-content");
+      button.classList.remove("active");
+    }
+    return;
+  }
+
+  // Save original content if not already saved
+  if (!contentDiv.hasAttribute("data-original-content")) {
+    contentDiv.setAttribute("data-original-content", contentDiv.innerHTML);
+  }
+
+  // Get the actual row value (adjust for Excel row numbering)
+  const actualRow = parseInt(row) + 2;
+
+  // Fetch Arabic text
+  fetch(`/get_arabic_text?row_idx=${actualRow}`)
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.status === "success") {
+        contentDiv.innerHTML = data.arabic_text.replace(/\n/g, "<br>");
+        button.classList.add("active");
+
+        // Save Arabic content for future use
+        contentDiv.setAttribute("data-arabic-content", contentDiv.innerHTML);
+      } else {
+        console.error("Error fetching Arabic:", data.message);
+        showNotification("Error: " + data.message, "error");
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching Arabic text:", error);
+      showNotification("Error fetching Arabic text", "error");
+    });
+}
+
+// Show previously generated Bangla text
+function showBanglaText(button) {
+  const row = button.getAttribute("data-row");
+  if (!row) {
+    console.error("No row index found on button");
+    showNotification("Error: Missing row index", "error");
+    return;
+  }
 
   const cellContainer = button.closest(".cell-container");
   const contentDiv = cellContainer.querySelector(".cell-content");
-  const translateButton = cellContainer.querySelector(".translate-bangla-btn");
 
-  // Check current state
-  const isShowingArabic = button.classList.contains("showing-arabic");
-  const isShowingBangla = button.classList.contains("showing-bangla");
+  // Reset other buttons
+  const showArabicBtn = cellContainer.querySelector(".show-arabic-btn");
+  const generateBanglaBtn = cellContainer.querySelector(".generate-bangla-btn");
 
-  if (isShowingArabic) {
-    // Switch back to original content
+  if (showArabicBtn) showArabicBtn.classList.remove("active");
+  if (generateBanglaBtn) generateBanglaBtn.classList.remove("active");
+
+  // If button is already active, show original content
+  if (button.classList.contains("active")) {
     if (contentDiv.hasAttribute("data-original-content")) {
       contentDiv.innerHTML = contentDiv.getAttribute("data-original-content");
-      button.classList.remove("showing-arabic");
-      button.querySelector("i").textContent = "translate";
+      button.classList.remove("active");
     }
-  } else if (isShowingBangla) {
-    // Switch to Arabic text
-    const actualRow = parseInt(row) + 2; // Adjust for 0-based indexing and header row
-    fetch(`/get_arabic_text?row_idx=${actualRow}`)
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status === "success") {
-          contentDiv.innerHTML = data.arabic_text.replace(/\n/g, "<br>");
-          button.classList.remove("showing-bangla");
-          button.classList.add("showing-arabic");
-          button.querySelector("i").textContent = "description";
-          // Reset translate button if exists
-          if (translateButton) {
-            translateButton.classList.remove("showing-bangla");
-          }
-        } else {
-          console.error("Error fetching Arabic:", data.message);
-          showNotification("Error: " + data.message, "error");
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching Arabic text:", error);
-        showNotification("Error fetching Arabic text", "error");
-      });
+    return;
+  }
+
+  // If bangla content exists, show it
+  if (contentDiv.hasAttribute("data-bangla-content")) {
+    // Save original content if not already saved
+    if (!contentDiv.hasAttribute("data-original-content")) {
+      contentDiv.setAttribute("data-original-content", contentDiv.innerHTML);
+    }
+
+    contentDiv.innerHTML = contentDiv.getAttribute("data-bangla-content");
+    button.classList.add("active");
   } else {
-    // Switch to Arabic text
-    const actualRow = parseInt(row) + 2;
-    fetch(`/get_arabic_text?row_idx=${actualRow}`)
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status === "success") {
-          if (!contentDiv.hasAttribute("data-original-content")) {
-            contentDiv.setAttribute(
-              "data-original-content",
-              contentDiv.innerHTML
-            );
-          }
-          contentDiv.innerHTML = data.arabic_text.replace(/\n/g, "<br>");
-          button.classList.add("showing-arabic");
-          button.querySelector("i").textContent = "description";
-          // Reset translate button if exists
-          if (translateButton) {
-            translateButton.classList.remove("showing-bangla");
-          }
-        } else {
-          console.error("Error fetching Arabic:", data.message);
-          showNotification("Error: " + data.message, "error");
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching Arabic text:", error);
-        showNotification("Error fetching Arabic text", "error");
-      });
+    // If no Bangla translation exists yet, generate one
+    generateBanglaText(cellContainer.querySelector(".generate-bangla-btn"));
   }
 }
 
-// New function to handle AI translation to Bangla
-function translateToBangla(button) {
+// Generate new Bangla translation
+function generateBanglaText(button) {
   const row = button.getAttribute("data-row");
   if (!row) {
-    console.error("No row index found on translate button");
+    console.error("No row index found on button");
     showNotification("Error: Missing row index", "error");
     return;
   }
 
-  console.log("Translate to Bangla for row:", row);
-
   const cellContainer = button.closest(".cell-container");
   const contentDiv = cellContainer.querySelector(".cell-content");
-  const toggleArabicBtn = cellContainer.querySelector(".toggle-arabic-btn");
+
+  // Reset other buttons
+  const showArabicBtn = cellContainer.querySelector(".show-arabic-btn");
+  const showBanglaBtn = cellContainer.querySelector(".show-bangla-btn");
+
+  if (showArabicBtn) showArabicBtn.classList.remove("active");
+  if (showBanglaBtn) showBanglaBtn.classList.remove("active");
 
   // Save original content if not already saved
   if (!contentDiv.hasAttribute("data-original-content")) {
@@ -1062,13 +1092,16 @@ function translateToBangla(button) {
     .then((data) => {
       if (data.status === "success") {
         contentDiv.innerHTML = data.translated_bangla.replace(/\n/g, "<br>");
-        button.classList.add("showing-bangla");
-        // Update toggle button state
-        if (toggleArabicBtn) {
-          toggleArabicBtn.classList.remove("showing-arabic");
-          toggleArabicBtn.classList.add("showing-bangla");
-          toggleArabicBtn.querySelector("i").textContent = "g_translate";
+        button.classList.add("active");
+
+        // Save Bangla content for future use
+        contentDiv.setAttribute("data-bangla-content", contentDiv.innerHTML);
+
+        // Also make the show Bangla button usable now
+        if (showBanglaBtn) {
+          showBanglaBtn.setAttribute("data-has-translation", "true");
         }
+
         showNotification("Translation completed!");
       } else {
         console.error("Error translating to Bangla:", data.message);

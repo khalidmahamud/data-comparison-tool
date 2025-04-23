@@ -1502,7 +1502,7 @@ input:checked + .slider:before {
   /* Other styles like min-height, background etc. remain */
 }
 
-/* Toggle Arabic button styles */
+/* Replace toggle-arabic-btn styles */
 .toggle-arabic-btn {
   color: #718096;
   background-color: var(--button-bg);
@@ -1534,6 +1534,57 @@ input:checked + .slider:before {
   color: #ffffff;
 }
 
+/* Replace with new button styles */
+.show-arabic-btn,
+.show-bangla-btn,
+.generate-bangla-btn {
+  color: #718096;
+  background-color: var(--button-bg);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: var(--transition);
+  box-shadow: var(--button-shadow);
+}
+
+.show-arabic-btn:hover,
+.show-bangla-btn:hover,
+.generate-bangla-btn:hover {
+  transform: scale(1.1);
+  color: #2d3748;
+}
+
+.show-arabic-btn.active i {
+  color: #e63946; /* Red for Arabic */
+}
+
+.show-bangla-btn.active i {
+  color: #2a9d8f; /* Teal for Bangla */
+}
+
+.generate-bangla-btn.active i {
+  color: #006f3c; /* Green for newly generated Bangla */
+}
+
+[data-theme="dark"] .show-arabic-btn,
+[data-theme="dark"] .show-bangla-btn,
+[data-theme="dark"] .generate-bangla-btn {
+  color: #8899ab;
+}
+
+[data-theme="dark"] .show-arabic-btn:hover,
+[data-theme="dark"] .show-bangla-btn:hover,
+[data-theme="dark"] .generate-bangla-btn:hover {
+  color: #ffffff;
+}
+
+/* You can keep the translate-bangla-btn css for now as it might be used in other places */
+
+/* Filter Button Styles */
 .filter-buttons .btn-apply-filter,
 .filter-buttons .clear-filter-btn {
   flex: 1; /* Make both buttons take equal space */
@@ -1586,6 +1637,7 @@ input:checked + .slider:before {
   margin-top: 15px;
 }
 
+/* Original translate-bangla-btn styles if needed */
 .translate-bangla-btn {
   color: #718096;
   background-color: var(--button-bg);
