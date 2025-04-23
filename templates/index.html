@@ -79,6 +79,7 @@
                                     </div>
                                     <textarea class="editable" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}">{{ item.col_b }}</textarea>
                                     <div class="action-buttons-container">
+                                        <div style="font-size: 0.9em; opacity: 0.8;margin-top: 4px;">{{ "%.2f"|format(item.ratio) }}</div>
                                         <div class="action-buttons">
                                             <button class="save-btn" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" style="display:none;" title="Save changes">
                                                 <i class="material-icons">save</i>
