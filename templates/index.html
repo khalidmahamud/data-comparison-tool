@@ -269,7 +269,7 @@
             <form action="/" method="get" id="combined-filter-form">
                 <input type="hidden" name="page" value="1">
                 <input type="hidden" name="rows_per_page" value="{{ rows_per_page }}">
-                <input type="hidden"  name="filter_change_enabled" value="on">
+                <input type="hidden" name="filter_change_enabled" value="on">
 
                 <h4>Sort By Ratio</h4>
                 <div class="filter-item">
@@ -289,8 +289,8 @@
 
                 <h4>Filter By Percentage</h4>
                 <div class="filter-item">
-                    <label for="filter-change-input">Greater Than ></label>
-                    <input type="text" step="any" name="filter_change_value" id="filter-change-input" value="{{ filter_change_value }}" placeholder="e.g., 10">
+                    <label for="filter_change_gt_value">Greater Than ></label>
+                    <input type="text" step="any" name="filter_change_gt_value" id="filter_change_gt_value" value="{{ filter_change_gt_value }}" placeholder="e.g., 10">
                 </div>
                 <div class="filter-item">
                     <label for="filter-change-lt-input">Less Than <</label>
@@ -349,12 +349,12 @@
         function clearFilters() {            
             const form = document.getElementById('combined-filter-form');
             if (form) {
-                // Uncheck the enable filter checkbox
+                // Make sure the filter is enabled
                 const enableCheckbox = form.querySelector('input[name="filter_change_enabled"]');
-                if (enableCheckbox) enableCheckbox.checked = true;
+                if (enableCheckbox) enableCheckbox.value = 'on';
                 
                 // Reset percentage filter inputs
-                const changeValueInput = form.querySelector('input[name="filter_change_value"]');
+                const changeValueInput = form.querySelector('input[name="filter_change_gt_value"]');
                 if (changeValueInput) changeValueInput.value = '';
                 const changeLtInput = form.querySelector('input[name="filter_change_lt_value"]');
                 if (changeLtInput) changeLtInput.value = '';

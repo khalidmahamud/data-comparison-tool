@@ -282,7 +282,7 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
         df = df.sort_values(by=ratio_col, ascending=False)
     # If sort_order is 'none', no sorting is applied - retain original order
 
-    if filter_change_enabled and change_col_exists:
+    if filter_change_enabled:
         df = df.dropna(subset=[ratio_col])
         if filter_change_value is not None:
             try:
@@ -421,7 +421,7 @@ def index():
     rows_per_page = request.args.get('rows_per_page', default=10, type=int)
     page = request.args.get('page', default=1, type=int)
     filter_change_enabled = request.args.get('filter_change_enabled') == 'on'
-    filter_change_gt_value_str = request.args.get('filter_change_value', default='').strip()
+    filter_change_gt_value_str = request.args.get('filter_change_gt_value', default='').strip()
     filter_change_lt_value_str = request.args.get('filter_change_lt_value', default='').strip()
     filter_change_from_value_str = request.args.get('filter_change_from_value', default='').strip()
     filter_change_to_value_str = request.args.get('filter_change_to_value', default='').strip()
@@ -518,7 +518,7 @@ def index():
                           total_rows=total_rows,
                           hadith_sheet_missing=data_sheet_missing,
                           filter_change_enabled=filter_change_enabled,
-                          filter_change_value=filter_change_gt_value_str,
+                          filter_change_gt_value=filter_change_gt_value_str,
                           filter_change_lt_value=filter_change_lt_value_str,
                           filter_change_from_value=filter_change_from_value_str,
                           filter_change_to_value=filter_change_to_value_str,
