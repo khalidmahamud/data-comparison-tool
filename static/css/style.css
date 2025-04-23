@@ -1558,10 +1558,6 @@ input:checked + .slider:before {
   color: #2d3748;
 }
 
-.show-arabic-btn.active i {
-  color: #e63946; /* Red for Arabic */
-}
-
 .show-bangla-btn.active i {
   color: #2a9d8f; /* Teal for Bangla */
 }

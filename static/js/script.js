@@ -979,6 +979,7 @@ function showArabicText(button) {
   if (button.classList.contains("active")) {
     if (contentDiv.hasAttribute("data-original-content")) {
       contentDiv.innerHTML = contentDiv.getAttribute("data-original-content");
+      button.querySelector("i").textContent = "translate";
       button.classList.remove("active");
     }
     return;
@@ -999,6 +1000,7 @@ function showArabicText(button) {
       if (data.status === "success") {
         contentDiv.innerHTML = data.arabic_text.replace(/\n/g, "<br>");
         button.classList.add("active");
+        button.querySelector("i").textContent = "description";
 
         // Save Arabic content for future use
         contentDiv.setAttribute("data-arabic-content", contentDiv.innerHTML);
@@ -1029,7 +1031,11 @@ function showBanglaText(button) {
   const showArabicBtn = cellContainer.querySelector(".show-arabic-btn");
   const generateBanglaBtn = cellContainer.querySelector(".generate-bangla-btn");
 
-  if (showArabicBtn) showArabicBtn.classList.remove("active");
+  if (showArabicBtn) {
+    showArabicBtn.classList.remove("active");
+    // Reset Arabic button icon
+    showArabicBtn.querySelector("i").textContent = "g_translate";
+  }
   if (generateBanglaBtn) generateBanglaBtn.classList.remove("active");
 
   // If button is already active, show original content
@@ -1072,7 +1078,11 @@ function generateBanglaText(button) {
   const showArabicBtn = cellContainer.querySelector(".show-arabic-btn");
   const showBanglaBtn = cellContainer.querySelector(".show-bangla-btn");
 
-  if (showArabicBtn) showArabicBtn.classList.remove("active");
+  if (showArabicBtn) {
+    showArabicBtn.classList.remove("active");
+    // Reset Arabic button icon
+    showArabicBtn.querySelector("i").textContent = "g_translate";
+  }
   if (showBanglaBtn) showBanglaBtn.classList.remove("active");
 
   // Save original content if not already saved
