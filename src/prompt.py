@@ -20,3 +20,4 @@ def read_file(path: str):
 
 
 generate_prompt = read_file("./prompts/regenerate_hadis_prompt.md")
+translate_arabic_to_bangla_prompt = read_file("./prompts/translate_arabic_to_bangla.md")

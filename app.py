@@ -907,6 +907,79 @@ def get_arabic_text():
         print(traceback.format_exc())
         return jsonify({'status': 'error', 'message': str(e)})
 
+@app.route('/translate_arabic_to_bangla', methods=['GET'])
+def translate_arabic_to_bangla():
+    try:
+        row_idx = request.args.get('row_idx', type=int)
+        
+        if row_idx is None:
+            return jsonify({'status': 'error', 'message': 'Row index is required'})
+
+        input_file = get_input_file_path()
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Input file not found'})
+
+        # Read the Excel file
+        xls = pd.ExcelFile(input_file, engine='openpyxl')
+        sheet_name = get_sheet_name()
+        sheet_name = sheet_name if sheet_name in xls.sheet_names else xls.sheet_names[0]
+        df = pd.read_excel(xls, sheet_name=sheet_name)
+
+        # Get the Arabic column name from config
+        arabic_column = get_column_name('arabic_text')
+        
+        # Check for Arabic column
+        if arabic_column not in df.columns:
+            if 'arabic_text' in df.columns:
+                arabic_column = 'arabic_text'
+            elif 'hadith_arabic' in df.columns:
+                arabic_column = 'hadith_arabic'
+            else:
+                for col in df.columns:
+                    if 'arabic' in str(col).lower():
+                        arabic_column = col
+                        break
+        
+        if arabic_column is None or arabic_column not in df.columns:
+            return jsonify({
+                'status': 'error',
+                'message': 'No Arabic text column found. Available columns: ' + ', '.join(df.columns)
+            })
+
+        # Validate row index
+        df_row_idx = row_idx - 2  # Adjust for 0-based indexing and header row
+        if df_row_idx < 0 or df_row_idx >= len(df):
+            return jsonify({
+                'status': 'error',
+                'message': f'Row index {row_idx} out of range (should be between 2 and {len(df)+1})'
+            })
+
+        # Get the Arabic text
+        arabic_text = df.iloc[df_row_idx][arabic_column]
+        arabic_text = str(arabic_text) if not pd.isna(arabic_text) else "لا يوجد نص عربي"
+
+        # Prepare the translation query
+        from src.prompt import inject_variables, translate_arabic_to_bangla_prompt
+        query = inject_variables(translate_arabic_to_bangla_prompt, {
+            "arabic_text": arabic_text
+        })
+
+        # Call the AI model for translation
+        from src.ai import ask
+        translated_text = ask(query).strip()
+
+        return jsonify({
+            'status': 'success',
+            'arabic_text': arabic_text,
+            'translated_bangla': translated_text,
+            'row_used': row_idx
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"Error translating Arabic to Bangla: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/recalculate_ratios', methods=['POST'])
 def recalculate_ratios():

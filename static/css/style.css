@@ -1585,3 +1585,34 @@ input:checked + .slider:before {
   gap: 10px;
   margin-top: 15px;
 }
+
+.translate-bangla-btn {
+  color: #718096;
+  background-color: var(--button-bg);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: var(--transition);
+  box-shadow: var(--button-shadow);
+}
+
+.translate-bangla-btn:hover {
+  transform: scale(1.1);
+  color: #2d3748;
+}
+
+.translate-bangla-btn.showing-bangla i {
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .translate-bangla-btn {
+  color: #8899ab;
+}
+
+[data-theme="dark"] .translate-bangla-btn:hover {
+  color: #ffffff;
+}

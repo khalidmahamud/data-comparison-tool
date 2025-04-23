@@ -803,12 +803,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Setup diff highlighting for all rows
   document.querySelectorAll("tbody tr").forEach(setupDiffHighlighting);
-});
 
-document.querySelectorAll(".toggle-arabic-btn").forEach((btn) => {
-  btn.addEventListener("click", function (event) {
-    event.stopPropagation();
-    toggleArabicText(event.currentTarget);
+  // Add event listeners for toggle and translate buttons
+  document.querySelectorAll(".toggle-arabic-btn").forEach((btn) => {
+    btn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      toggleArabicText(event.currentTarget);
+    });
+  });
+
+  document.querySelectorAll(".translate-bangla-btn").forEach((btn) => {
+    btn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      translateToBangla(event.currentTarget);
+    });
   });
 });
 
@@ -939,8 +947,9 @@ function setupSidebar() {
   });
 }
 
+// Modified toggleArabicText to handle state transitions
 function toggleArabicText(button) {
-  console.log(button);
+  console.log("Toggle Arabic for button:", button);
   const row = button.getAttribute("data-row");
   if (!row) {
     console.error("No row index found on toggle button");
@@ -948,39 +957,67 @@ function toggleArabicText(button) {
     return;
   }
 
-  console.log("Toggle Arabic for row:", row); // Debug log
+  console.log("Toggle Arabic for row:", row);
 
   const cellContainer = button.closest(".cell-container");
   const contentDiv = cellContainer.querySelector(".cell-content");
+  const translateButton = cellContainer.querySelector(".translate-bangla-btn");
 
-  // Check if we're currently showing Arabic
+  // Check current state
   const isShowingArabic = button.classList.contains("showing-arabic");
+  const isShowingBangla = button.classList.contains("showing-bangla");
 
   if (isShowingArabic) {
     // Switch back to original content
     if (contentDiv.hasAttribute("data-original-content")) {
       contentDiv.innerHTML = contentDiv.getAttribute("data-original-content");
       button.classList.remove("showing-arabic");
-      button.querySelector("i").textContent = "translate"; // Change icon back
+      button.querySelector("i").textContent = "translate";
     }
-  } else {
-    // Save original content if not already saved
-    if (!contentDiv.hasAttribute("data-original-content")) {
-      contentDiv.setAttribute("data-original-content", contentDiv.innerHTML);
-    }
-
-    // Get the actual row value from the Excel table
-    // This is needed because row_idx in the template is the pandas DataFrame index
-    const actualRow = parseInt(row) + 2; // +2 accounts for 0-indexing and header row
-
-    // Fetch and show Arabic content using the corrected row index
+  } else if (isShowingBangla) {
+    // Switch to Arabic text
+    const actualRow = parseInt(row) + 2; // Adjust for 0-based indexing and header row
     fetch(`/get_arabic_text?row_idx=${actualRow}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "success") {
           contentDiv.innerHTML = data.arabic_text.replace(/\n/g, "<br>");
+          button.classList.remove("showing-bangla");
           button.classList.add("showing-arabic");
-          button.querySelector("i").textContent = "description"; // Change icon
+          button.querySelector("i").textContent = "description";
+          // Reset translate button if exists
+          if (translateButton) {
+            translateButton.classList.remove("showing-bangla");
+          }
+        } else {
+          console.error("Error fetching Arabic:", data.message);
+          showNotification("Error: " + data.message, "error");
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching Arabic text:", error);
+        showNotification("Error fetching Arabic text", "error");
+      });
+  } else {
+    // Switch to Arabic text
+    const actualRow = parseInt(row) + 2;
+    fetch(`/get_arabic_text?row_idx=${actualRow}`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "success") {
+          if (!contentDiv.hasAttribute("data-original-content")) {
+            contentDiv.setAttribute(
+              "data-original-content",
+              contentDiv.innerHTML
+            );
+          }
+          contentDiv.innerHTML = data.arabic_text.replace(/\n/g, "<br>");
+          button.classList.add("showing-arabic");
+          button.querySelector("i").textContent = "description";
+          // Reset translate button if exists
+          if (translateButton) {
+            translateButton.classList.remove("showing-bangla");
+          }
         } else {
           console.error("Error fetching Arabic:", data.message);
           showNotification("Error: " + data.message, "error");
@@ -991,6 +1028,57 @@ function toggleArabicText(button) {
         showNotification("Error fetching Arabic text", "error");
       });
   }
+}
+
+// New function to handle AI translation to Bangla
+function translateToBangla(button) {
+  const row = button.getAttribute("data-row");
+  if (!row) {
+    console.error("No row index found on translate button");
+    showNotification("Error: Missing row index", "error");
+    return;
+  }
+
+  console.log("Translate to Bangla for row:", row);
+
+  const cellContainer = button.closest(".cell-container");
+  const contentDiv = cellContainer.querySelector(".cell-content");
+  const toggleArabicBtn = cellContainer.querySelector(".toggle-arabic-btn");
+
+  // Save original content if not already saved
+  if (!contentDiv.hasAttribute("data-original-content")) {
+    contentDiv.setAttribute("data-original-content", contentDiv.innerHTML);
+  }
+
+  // Get the actual row value (adjust for Excel row numbering)
+  const actualRow = parseInt(row) + 2;
+
+  // Show loading state
+  showNotification("Translating to Bangla...", "info");
+
+  // Fetch AI-translated Bangla text
+  fetch(`/translate_arabic_to_bangla?row_idx=${actualRow}`)
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.status === "success") {
+        contentDiv.innerHTML = data.translated_bangla.replace(/\n/g, "<br>");
+        button.classList.add("showing-bangla");
+        // Update toggle button state
+        if (toggleArabicBtn) {
+          toggleArabicBtn.classList.remove("showing-arabic");
+          toggleArabicBtn.classList.add("showing-bangla");
+          toggleArabicBtn.querySelector("i").textContent = "g_translate";
+        }
+        showNotification("Translation completed!");
+      } else {
+        console.error("Error translating to Bangla:", data.message);
+        showNotification("Error: " + data.message, "error");
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching Bangla translation:", error);
+      showNotification("Error fetching Bangla translation", "error");
+    });
 }
 
 function setupRecalculateRatioButton() {
