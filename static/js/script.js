@@ -395,6 +395,11 @@ function saveCell(saveBtn) {
     delete textArea._syncElements; // Clean up
   }
 
+  // Remove scrolling class from Col A content if it exists
+  if (colAContent) {
+    colAContent.classList.remove("scrolling-active");
+  }
+
   const text = textArea.value.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n");
   const formData = new FormData();
   formData.append("row_idx", rowIdx);
