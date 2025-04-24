@@ -80,7 +80,7 @@
                             </td>
                             <td class="{{ item.status }} {% if item.col_b_approved %}{% if item.col_b_type == 'green' %}approved{% elif item.col_b_type == 'yellow' %}yellow-approved{% elif item.col_b_type == 'red' %}red-approved{% endif %}{% endif %}">
                                 <div class="cell-container">
-                                    <div class="cell-content" data-row="{{ item.row_idx }}">
+                                    <div class="cell-content" data-editable data-row="{{ item.row_idx }}">
                                         {% if item.status == 'different' %}{{ item.highlighted_b | safe }}{% else %}{{ item.col_b | replace('\n', '<br>') | safe }}{% endif %}
                                     </div>
                                     <textarea class="editable" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}">{{ item.col_b }}</textarea>

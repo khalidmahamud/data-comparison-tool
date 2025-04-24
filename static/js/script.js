@@ -800,7 +800,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Double click to edit cells
-  document.querySelectorAll(".cell-content").forEach((div) => {
+  document.querySelectorAll(".cell-content[data-editable]").forEach((div) => {
     div.addEventListener("dblclick", function () {
       makeEditable(this);
     });
