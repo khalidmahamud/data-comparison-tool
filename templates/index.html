@@ -18,9 +18,7 @@
         <h1>Hadith Text Comparison Tool</h1>
         
         <!-- Regenerate All Button -->
-        <button id="regenerate-all-btn" class="regenerate-all-btn" title="Regenerate all cells">
-            <i class="material-icons">offline_bolt</i> Regenerate All
-        </button>
+
      
         <div class="controls">
             <div class="info">
@@ -29,6 +27,10 @@
                     {{ [current_page * rows_per_page, total_rows] | min }} of {{ total_rows }} rows
                 {% endif %}
             </div>
+
+            <button id="regenerate-all-btn" class="regenerate-all-btn" title="Regenerate all cells">
+                <i class="material-icons">offline_bolt</i> Regenerate All
+            </button>
         </div>
 
         {% if data %}

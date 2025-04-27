@@ -1666,7 +1666,6 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 10px auto 15px;
   padding: 8px 16px;
   background-color: #4caf50;
   color: white;
@@ -1674,6 +1673,7 @@ input:checked + .slider:before {
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
+  margin-left: auto;
   transition: background-color 0.3s;
 }
 
