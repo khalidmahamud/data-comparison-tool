@@ -752,12 +752,47 @@ function regenerateCell(button) {
 
 // Function to regenerate all cells in parallel using backend endpoint
 function regenerateAllCells() {
-  const regenerateButtons = Array.from(
+  // Get the selected color from the dropdown
+  const colorSelect = document.getElementById("regenerate-color-select");
+  const selectedColor = colorSelect ? colorSelect.value : "any";
+
+  // Find all regenerate buttons
+  let regenerateButtons = Array.from(
     document.querySelectorAll(".generate-btn")
   );
 
+  // Filter buttons based on the selected color
+  if (selectedColor !== "any") {
+    regenerateButtons = regenerateButtons.filter((button) => {
+      const cell = button.closest("td");
+
+      if (selectedColor === "none") {
+        // Select cells that don't have any color approval
+        return (
+          !cell.classList.contains("approved") &&
+          !cell.classList.contains("yellow-approved") &&
+          !cell.classList.contains("red-approved")
+        );
+      } else if (selectedColor === "green") {
+        // Select cells with green approval
+        return cell.classList.contains("approved");
+      } else if (selectedColor === "yellow") {
+        // Select cells with yellow approval
+        return cell.classList.contains("yellow-approved");
+      } else if (selectedColor === "red") {
+        // Select cells with red approval
+        return cell.classList.contains("red-approved");
+      }
+
+      return true;
+    });
+  }
+
   if (regenerateButtons.length === 0) {
-    showNotification("No cells to regenerate", "info");
+    showNotification(
+      `No cells to regenerate with filter: ${selectedColor}`,
+      "info"
+    );
     return;
   }
 
@@ -828,22 +863,6 @@ function regenerateAllCells() {
               // 3. Update diff status
               cell.classList.remove("same", "different");
               cell.classList.add(result.diff_status);
-
-              // 4. Update color approval status
-              cell.classList.remove(
-                "approved",
-                "yellow-approved",
-                "red-approved"
-              );
-              if (result.col_b_approved) {
-                const classMap = {
-                  green: "approved",
-                  yellow: "yellow-approved",
-                  red: "red-approved",
-                };
-                const approvalClass = classMap[result.col_b_type] || "approved";
-                cell.classList.add(approvalClass);
-              }
 
               // 5. Re-setup highlighting
               setupDiffHighlighting(row);

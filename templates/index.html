@@ -18,16 +18,21 @@
         <h1>Hadith Text Comparison Tool</h1>
         
         <!-- Regenerate All Button -->
+        <div class="pagination-info">
+            {% if total_rows > 0 %}
+                Showing {{ (current_page - 1) * rows_per_page + 1 }} to 
+                {{ [current_page * rows_per_page, total_rows] | min }} of {{ total_rows }} rows
+            {% endif %}
+        </div>
 
-     
-        <div class="controls">
-            <div class="info">
-                {% if total_rows > 0 %}
-                    Showing {{ (current_page - 1) * rows_per_page + 1 }} to 
-                    {{ [current_page * rows_per_page, total_rows] | min }} of {{ total_rows }} rows
-                {% endif %}
-            </div>
-
+        <div class="regenerate-controls">
+            <select id="regenerate-color-select" class="regenerate-color-select">
+                <option value="any">Any Color</option>
+                <option value="none">No Color</option>
+                <option value="green">Green</option>
+                <option value="yellow">Yellow</option>
+                <option value="red">Red</option>
+            </select>
             <button id="regenerate-all-btn" class="regenerate-all-btn" title="Regenerate all cells">
                 <i class="material-icons">offline_bolt</i> Regenerate All
             </button>
