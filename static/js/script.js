@@ -750,7 +750,7 @@ function regenerateCell(button) {
     });
 }
 
-// Function to regenerate all cells sequentially with delay
+// Function to regenerate all cells in parallel using backend endpoint
 function regenerateAllCells() {
   const regenerateButtons = Array.from(
     document.querySelectorAll(".generate-btn")
@@ -764,129 +764,120 @@ function regenerateAllCells() {
   const regenerateAllBtn = document.getElementById("regenerate-all-btn");
   const originalContent = regenerateAllBtn.innerHTML;
   let buttonCount = regenerateButtons.length;
-  let processedCount = 0;
 
-  regenerateAllBtn.innerHTML = `<span class="loading-spinner"></span> Processing 0/${buttonCount}`;
+  regenerateAllBtn.innerHTML = `<span class="loading-spinner"></span> Processing...`;
   regenerateAllBtn.disabled = true;
 
   showNotification(`Starting regeneration of ${buttonCount} cells...`, "info");
 
-  // Create a promise-based version of regenerateCell
-  function regenerateCellPromise(button) {
-    return new Promise((resolve) => {
-      const rowIdx = button.getAttribute("data-row");
-      const page = button.getAttribute("data-page");
-      const rowsPerPage = button.getAttribute("data-rows");
+  // Collect all row IDs to send to backend
+  const rowIds = regenerateButtons.map((button) =>
+    parseInt(button.getAttribute("data-row"))
+  );
 
-      const originalContent = button.innerHTML;
-      button.innerHTML = '<span class="loading-spinner"></span>';
-      button.disabled = true;
+  // Set all buttons to loading state
+  regenerateButtons.forEach((button) => {
+    button.innerHTML = '<span class="loading-spinner"></span>';
+    button.disabled = true;
+  });
 
-      const container = button.closest(".cell-container");
-      const contentDiv = container.querySelector(".cell-content");
-      const textArea = container.querySelector(".editable");
+  // Call backend endpoint to process all rows in parallel
+  fetch("/regenerate_multiple_cells", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ row_ids: rowIds }),
+  })
+    .then((response) => {
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      if (data.status === "success") {
+        showNotification(data.message, "success");
 
-      const formData = new FormData();
-      formData.append("row_idx", rowIdx);
-      formData.append("page", page);
-      formData.append("rows_per_page", rowsPerPage);
-
-      fetch("/regenerate_cell", {
-        method: "POST",
-        body: formData,
-      })
-        .then((response) => {
-          if (!response.ok)
-            throw new Error(`HTTP error! status: ${response.status}`);
-          return response.json();
-        })
-        .then((data) => {
-          if (data.status === "success") {
-            const row = container.closest("tr");
-            const colAContent = row.querySelector(
-              "td:nth-child(2) .cell-content"
+        // Process each result and update UI
+        data.results.forEach((result) => {
+          if (result.status === "success") {
+            // Find the button for this row
+            const button = regenerateButtons.find(
+              (btn) => parseInt(btn.getAttribute("data-row")) === result.row_idx
             );
-            const cell = contentDiv.closest("td");
 
-            // 1. Update Col B content
-            contentDiv.innerHTML = data.highlighted_html;
-            textArea.value = data.new_text;
+            if (button) {
+              const container = button.closest(".cell-container");
+              const contentDiv = container.querySelector(".cell-content");
+              const textArea = container.querySelector(".editable");
+              const row = container.closest("tr");
+              const colAContent = row.querySelector(
+                "td:nth-child(2) .cell-content"
+              );
+              const cell = contentDiv.closest("td");
 
-            // 2. Update Col A content (if provided)
-            if (data.highlighted_a_html && colAContent) {
-              colAContent.innerHTML = data.highlighted_a_html;
+              // 1. Update Col B content
+              contentDiv.innerHTML = result.highlighted_html;
+              if (textArea) textArea.value = result.new_text;
+
+              // 2. Update Col A content (if provided)
+              if (result.highlighted_a_html && colAContent) {
+                colAContent.innerHTML = result.highlighted_a_html;
+              }
+
+              // 3. Update diff status
+              cell.classList.remove("same", "different");
+              cell.classList.add(result.diff_status);
+
+              // 4. Update color approval status
+              cell.classList.remove(
+                "approved",
+                "yellow-approved",
+                "red-approved"
+              );
+              if (result.col_b_approved) {
+                const classMap = {
+                  green: "approved",
+                  yellow: "yellow-approved",
+                  red: "red-approved",
+                };
+                const approvalClass = classMap[result.col_b_type] || "approved";
+                cell.classList.add(approvalClass);
+              }
+
+              // 5. Re-setup highlighting
+              setupDiffHighlighting(row);
             }
-
-            // 3. Update diff status
-            cell.classList.remove("same", "different");
-            cell.classList.add(data.diff_status);
-
-            // 4. Update color approval status
-            cell.classList.remove(
-              "approved",
-              "yellow-approved",
-              "red-approved"
-            );
-            if (data.col_b_approved) {
-              const classMap = {
-                green: "approved",
-                yellow: "yellow-approved",
-                red: "red-approved",
-              };
-              const approvalClass = classMap[data.col_b_type] || "approved"; // Default to green if type is invalid
-              cell.classList.add(approvalClass);
-            }
-
-            // 5. Re-setup highlighting
-            setupDiffHighlighting(row);
           } else {
-            showNotification("Error: " + data.message, "error");
+            console.error(
+              `Error regenerating row ${result.row_idx}:`,
+              result.message
+            );
+            showNotification(
+              `Error regenerating row ${result.row_idx}: ${result.message}`,
+              "error"
+            );
           }
-        })
-        .catch((error) => {
-          console.error("Error regenerating cell:", error);
-          showNotification(
-            "Error regenerating cell: " + error.message,
-            "error"
-          );
-        })
-        .finally(() => {
-          button.innerHTML = originalContent;
-          button.disabled = false;
-          // Resolve the promise to indicate completion
-          resolve();
         });
-    });
-  }
+      } else {
+        showNotification("Error: " + data.message, "error");
+      }
+    })
+    .catch((error) => {
+      console.error("Error regenerating cells:", error);
+      showNotification("Error regenerating cells: " + error.message, "error");
+    })
+    .finally(() => {
+      // Restore all buttons to original state
+      regenerateButtons.forEach((button) => {
+        button.innerHTML = '<i class="material-icons">offline_bolt</i>';
+        button.disabled = false;
+      });
 
-  // Process buttons sequentially, waiting for each to complete
-  async function processNextButton(index) {
-    if (index >= regenerateButtons.length) {
-      // All buttons processed
+      // Restore regenerate all button
       regenerateAllBtn.innerHTML = originalContent;
       regenerateAllBtn.disabled = false;
-      showNotification(`Completed regenerating ${processedCount} cells`);
-      return;
-    }
-
-    const button = regenerateButtons[index];
-
-    // Update the button text to show progress
-    processedCount++;
-    regenerateAllBtn.innerHTML = `<span class="loading-spinner"></span> Processing ${processedCount}/${buttonCount}`;
-
-    // Call regenerateCellPromise and wait for it to complete
-    await regenerateCellPromise(button);
-
-    // Show notification for each completion
-    showNotification(`Completed ${processedCount}/${buttonCount} cells`);
-
-    // Move to the next button
-    processNextButton(index + 1);
-  }
-
-  // Start the process
-  processNextButton(0);
+    });
 }
 
 // Initialize everything when DOM is loaded - optimized with event delegation
