@@ -5,6 +5,8 @@ This script uses these variables:
 3. {current_analysis} - Any previous analysis if available
 -->
 
+STRICTLY INVALIDATE PREVIOUS CACHE OF THIS ANSWER
+
 ## Arabic Hadith:
 
 {{hadis_arabic_text}}
