@@ -864,6 +864,23 @@ function regenerateAllCells() {
               cell.classList.remove("same", "different");
               cell.classList.add(result.diff_status);
 
+              // 4. Update color approval status
+              cell.classList.remove(
+                "approved",
+                "yellow-approved",
+                "red-approved"
+              );
+
+              if (result.col_b_approved) {
+                const classMap = {
+                  green: "approved",
+                  yellow: "yellow-approved",
+                  red: "red-approved",
+                };
+                const approvalClass = classMap[result.col_b_type] || "approved";
+                cell.classList.add(approvalClass);
+              }
+
               // 5. Re-setup highlighting
               setupDiffHighlighting(row);
             }
