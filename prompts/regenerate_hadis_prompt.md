@@ -7,11 +7,11 @@ This script uses these variables:
 
 ## Arabic Hadith:
 
-{{{hadis_arabic_text}}}
+{{hadis_arabic_text}}
 
 ## Bengali Translation:
 
-{{{hadis_translated_bangla}}}
+{{hadis_translated_bangla}}
 
 ## Instructions:
 
