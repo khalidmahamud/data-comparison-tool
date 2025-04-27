@@ -1660,3 +1660,32 @@ input:checked + .slider:before {
 [data-theme="dark"] .translate-bangla-btn:hover {
   color: #ffffff;
 }
+
+/* Add styles for the regenerate-all button */
+.regenerate-all-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px auto 15px;
+  padding: 8px 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.regenerate-all-btn:hover {
+  background-color: #45a049;
+}
+
+.regenerate-all-btn .material-icons {
+  margin-right: 6px;
+}
+
+.regenerate-all-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
