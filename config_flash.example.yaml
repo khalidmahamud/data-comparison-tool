@@ -7,7 +7,7 @@ processing:
 
 api_settings:
   gemini_flash_1:
-    api_key: "YOUR_API_KEY_HERE"
+    api_key: "YourAPI"
     model: "gemini-2.0-flash"
     max_tokens: 8192
   # gemini_flash_2:
@@ -20,19 +20,19 @@ api_settings:
   #   max_tokens: 8192
 
 file_settings:
-  input_file: "input-ist.xlsx"
+  input_file: "spreadsheet.xlsx"
   output_file: "input-ist.xlsx"
   prompts_file: "prompts.txt"
   chunks_directory: "chunks"
   merged_file: "merged_output.xlsx"
   rows_per_chunk: 500
-  action: "merge" # Options: "split" or "merge"
+  action: "split" # Options: "split" or "merge"
 
 excel_settings:
-  sheet_name: "hadith"
+  sheet_name: "Sheet1"
   columns:
-    primary_text: "hadith_details"
-    secondary_text: "analysis-3"
+    primary_text: "bn"
+    arabic_text: "ar"
+    secondary_text: "ai"
     ratio: "ratio"
-    number: "number"
-    arabic_text: "arabic_text"
+    number: "hadith_id"
