@@ -238,10 +238,12 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
     if ratio_col not in df.columns:
         df[ratio_col] = df.apply(lambda row: difflib.SequenceMatcher(
             None, 
-            extract_standard_letters(str(row[primary_text_col]) if pd.notna(row[primary_text_col]) else ""),
-            extract_standard_letters(str(row[secondary_text_col]) if pd.notna(row[secondary_text_col]) else ""),
+            str(row[primary_text_col]) if pd.notna(row[primary_text_col]) else "",
+            str(row[secondary_text_col]) if pd.notna(row[secondary_text_col]) else "",
             autojunk=False
         ).ratio() * 100, axis=1)
+
+        
         
         # Save the ratio column back to Excel file while preserving formatting
         try:
@@ -272,8 +274,6 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
     if 'change' in df.columns:
         change_col_exists = True
         df['change'] = pd.to_numeric(df['change'], errors='coerce')
-    else:
-        print("Warning: 'change' column not found in the sheet.")
 
     # Sort by ratio based on sort_order parameter
     if sort_order == 'asc':
