@@ -17,7 +17,7 @@ This script uses these variables:
 
 1. Compare the Arabic and Bengali texts:
 
-   - If they don't match semantically, respond ONLY with: "NO_MATCH"
+   - If they don't match semantically, respond ONLY with: "Arabic and Bangla don't match"
    - Otherwise, proceed with corrections
 
 2. If they match, fix these issues while preserving the exact meaning:
