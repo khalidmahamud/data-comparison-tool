@@ -231,16 +231,15 @@
 
     <!-- Custom Prompt Modal -->
     <div id="customPromptModal" class="comment-modal">
-        <div class="comment-modal-content custom-prompt-content">
+        <div class="comment-modal-content custom-prompt-content" style="width: min(90%, 800px);">
             <span class="close-comment">×</span>
-            <h3>Custom Prompt</h3>
-            <p class="prompt-description">Customize your prompt below. You can use these placeholders:</p>
+            <h3 style="margin-bottom: 1rem;">Custom Prompt</h3>
             <div class="placeholder-list">
-                <span class="placeholder-item">{arabic_text}</span>
-                <span class="placeholder-item">{col_a_text}</span>
-                <span class="placeholder-item">{col_b_text}</span>
+                <span class="placeholder-item">{{ "{{arabic_text}}" }}</span>
+                <span class="placeholder-item">{{ "{{col_a_text}}" }}</span>
+                <span class="placeholder-item">{{ "{{col_b_text}}" }}</span>
             </div>
-            <textarea id="customPromptText" class="comment-textarea custom-prompt-textarea" placeholder="Enter your custom prompt here..."></textarea>
+            <textarea id="customPromptText" class="comment-textarea custom-prompt-textarea" placeholder="Enter your custom prompt here..." spellcheck="false" dir="auto"></textarea>
             <input type="hidden" id="promptRowIdx" value="">
             <input type="hidden" id="promptPage" value="">
             <input type="hidden" id="promptRowsPerPage" value="">

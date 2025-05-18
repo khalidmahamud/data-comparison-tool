@@ -1021,7 +1021,7 @@ input:checked + .slider .theme-icon.dark {
 
 .comment-modal-content {
   background-color: var(--card-bg);
-  margin: 15% auto;
+  margin: auto auto;
   padding: 20px;
   border: 1px solid var(--medium-gray);
   width: 25%;
@@ -1784,12 +1784,6 @@ input:checked + .slider:before {
   border-color: var(--primary-color);
 }
 
-/* Custom Prompt Modal Styles */
-.custom-prompt-content {
-  width: 40%;
-  max-width: 600px;
-}
-
 .prompt-description {
   font-size: 0.9rem;
   margin-bottom: 8px;
@@ -1826,11 +1820,21 @@ input:checked + .slider:before {
 }
 
 .custom-prompt-textarea {
-  min-height: 150px;
-  font-family: "Courier New", monospace;
-  font-size: 0.95rem;
+  min-height: 300px;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+  padding: 12px;
 }
 
 [data-theme="dark"] .prompt-description {
   color: var(--medium-gray);
+}
+
+* {
+  font-family: inherit;
+}
+
+textarea {
+  font-family: "Inter", "Kalpurush", sans-serif;
 }

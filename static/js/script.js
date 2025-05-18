@@ -927,13 +927,20 @@ function regenerateWithCustomPrompt(button) {
   promptPage.value = page;
   promptRowsPerPage.value = rowsPerPage;
 
-  // Load default template prompt if empty
-  if (!promptText.value) {
-    promptText.value = `Please analyze this content and provide a Bengali translation:\n\nArabic Text: {arabic_text}\n\nPrevious Bengali Translation: {col_b_text}\n\nOriginal Bengali: {col_a_text}\n\nPlease provide an improved Bengali translation incorporating aspects from both the original and previous translation:`;
+  // Load saved prompt from localStorage if it exists
+  const savedPrompt = localStorage.getItem("customPrompt");
+
+  // Load default template prompt if nothing is saved or use the saved prompt
+  if (savedPrompt) {
+    promptText.value = savedPrompt;
+  } else if (!promptText.value) {
+    const defaultPrompt = `Please analyze this content and provide a Bengali translation:\n\nArabic Text: {arabic_text}\n\nPrevious Bengali Translation: {col_b_text}\n\nOriginal Bengali: {col_a_text}\n\nPlease provide an improved Bengali translation incorporating aspects from both the original and previous translation:`;
+    promptText.value = defaultPrompt;
+    localStorage.setItem("customPrompt", defaultPrompt);
   }
 
   // Display the modal
-  customPromptModal.style.display = "block";
+  customPromptModal.style.display = "flex";
 }
 
 function executeCustomPrompt() {
@@ -946,6 +953,9 @@ function executeCustomPrompt() {
     showNotification("Please enter a prompt first", "error");
     return;
   }
+
+  // Save the prompt to localStorage
+  localStorage.setItem("customPrompt", promptText);
 
   // Close the modal
   document.getElementById("customPromptModal").style.display = "none";
@@ -1265,8 +1275,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeCustomPrompt = customPromptModal.querySelector(".close-comment");
   const promptCancelBtn = document.getElementById("promptCancelBtn");
   const promptGenerateBtn = document.getElementById("promptGenerateBtn");
+  const customPromptText = document.getElementById("customPromptText");
 
   function closeCustomPromptModal() {
+    // Save any changes to the prompt content before closing
+    if (customPromptText && customPromptText.value.trim()) {
+      localStorage.setItem("customPrompt", customPromptText.value);
+    }
     customPromptModal.style.display = "none";
   }
 
@@ -1277,6 +1292,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Close when clicking outside modal
   window.addEventListener("click", (e) => {
     if (e.target === customPromptModal) {
+      closeCustomPromptModal();
+    }
+  });
+
+  // Close on escape key press
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && customPromptModal.style.display === "flex") {
       closeCustomPromptModal();
     }
   });
@@ -1390,7 +1412,7 @@ function setupCommentFunctionality() {
           commentRowIdx.value = rowIdx;
           commentPage.value = page;
           commentRowsPerPage.value = rowsPerPage;
-          commentModal.style.display = "block";
+          commentModal.style.display = "flex";
         })
         .catch((error) => {
           console.error("Error fetching comment:", error);
@@ -1398,7 +1420,7 @@ function setupCommentFunctionality() {
           commentRowIdx.value = rowIdx;
           commentPage.value = page;
           commentRowsPerPage.value = rowsPerPage;
-          commentModal.style.display = "block";
+          commentModal.style.display = "flex";
         });
     }
   });
