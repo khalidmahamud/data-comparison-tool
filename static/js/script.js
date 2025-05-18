@@ -912,20 +912,11 @@ function regenerateWithPrompt2(button) {
 
 // Utility functions for managing body scroll
 function disableBodyScroll() {
-  const scrollY = window.scrollY;
-  document.body.style.position = "fixed";
-  document.body.style.top = `-${scrollY}px`;
-  document.body.style.width = "100%";
-  document.body.dataset.scrollY = scrollY;
+  document.body.style.overflow = "hidden";
 }
 
 function enableBodyScroll() {
-  const scrollY = document.body.dataset.scrollY || 0;
-  document.body.style.position = "";
-  document.body.style.top = "";
-  document.body.style.width = "";
-  window.scrollTo(0, parseInt(scrollY || 0));
-  delete document.body.dataset.scrollY;
+  document.body.style.overflow = "auto";
 }
 
 // Modify the regenerateWithCustomPrompt function

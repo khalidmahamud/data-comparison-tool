@@ -1843,3 +1843,7 @@ textarea {
 body[data-scroll-y] {
   overflow: hidden;
 }
+
+html {
+  scrollbar-gutter: stable;
+}
