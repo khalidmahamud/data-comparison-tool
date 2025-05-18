@@ -97,13 +97,21 @@
 
 /* Base Styles */
 body {
-  font-family: "Poppins", sans-serif;
+  font-family: "Inter", "Kalpurush", "Poppins", sans-serif;
   margin: 0;
   padding: 20px;
   background-color: var(--background-color);
   color: var(--text-color);
   line-height: 1.6;
   transition: var(--transition);
+}
+
+/* Add Kalpurush font */
+@font-face {
+  font-family: "Kalpurush";
+  src: url("../kalpurush.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
 }
 
 .container {
