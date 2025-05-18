@@ -392,7 +392,9 @@ td {
 .yellow-tick-btn,
 .red-tick-btn,
 .reset-btn,
-.generate-btn {
+.generate-btn,
+.regenerate-btn-1,
+.regenerate-btn-2 {
   background-color: var(--button-bg);
   border: none;
   cursor: pointer;
@@ -426,6 +428,12 @@ td {
 .generate-btn {
   color: #718096;
 }
+.regenerate-btn-1 {
+  color: #718096;
+}
+.regenerate-btn-2 {
+  color: #718096;
+}
 
 .edit-btn:hover,
 .tick-btn:hover,
@@ -433,13 +441,18 @@ td {
 .red-tick-btn:hover,
 .reset-btn:hover,
 .save-btn:hover,
-.generate-btn:hover {
+.generate-btn:hover,
+.regenerate-btn-1:hover,
+.regenerate-btn-2:hover,
+.comment-btn:hover {
   transform: scale(1.1);
 }
 
 .edit-btn:hover,
 .reset-btn:hover,
 .generate-btn:hover,
+.regenerate-btn-1:hover,
+.regenerate-btn-2:hover,
 .comment-btn:hover {
   color: #2d3748;
 }
@@ -874,7 +887,9 @@ input:checked + .slider .theme-icon.dark {
 [data-theme="dark"] .edit-btn,
 [data-theme="dark"] .save-btn,
 [data-theme="dark"] .reset-btn,
-[data-theme="dark"] .generate-btn {
+[data-theme="dark"] .generate-btn,
+[data-theme="dark"] .regenerate-btn-1,
+[data-theme="dark"] .regenerate-btn-2 {
   background-color: transparent;
 }
 
@@ -899,6 +914,12 @@ input:checked + .slider .theme-icon.dark {
 [data-theme="dark"] .generate-btn {
   color: #8899ab;
 }
+[data-theme="dark"] .regenerate-btn-1 {
+  color: #8899ab;
+}
+[data-theme="dark"] .regenerate-btn-2 {
+  color: #8899ab;
+}
 
 [data-theme="dark"] .tick-btn:hover,
 [data-theme="dark"] .yellow-tick-btn:hover,
@@ -906,12 +927,16 @@ input:checked + .slider .theme-icon.dark {
 [data-theme="dark"] .edit-btn:hover,
 [data-theme="dark"] .save-btn:hover,
 [data-theme="dark"] .reset-btn:hover,
-[data-theme="dark"] .generate-btn:hover {
+[data-theme="dark"] .generate-btn:hover,
+[data-theme="dark"] .regenerate-btn-1:hover,
+[data-theme="dark"] .regenerate-btn-2:hover {
   background-color: transparent;
 }
 
 [data-theme="dark"] .edit-btn:hover,
 [data-theme="dark"] .generate-btn:hover,
+[data-theme="dark"] .regenerate-btn-1:hover,
+[data-theme="dark"] .regenerate-btn-2:hover,
 [data-theme="dark"] .reset-btn:hover,
 .comment-btn:hover {
   color: #ffffff;
@@ -1059,6 +1084,8 @@ h3 {
 .reset-btn:hover,
 .save-btn:hover,
 .generate-btn:hover,
+.regenerate-btn-1:hover,
+.regenerate-btn-2:hover,
 .comment-btn:hover {
   transform: scale(1.1);
 }

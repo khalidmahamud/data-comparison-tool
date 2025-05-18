@@ -1205,4 +1205,487 @@ def select_chunk():
 def utility_processor():
     return dict(urlencode=urlencode)
 
+@app.route('/regenerate_with_prompt_1', methods=['POST'])
+def regenerate_with_prompt_1():
+    row_idx = request.form.get('row_idx', type=int)
+    try:
+        input_file = get_input_file_path()
+        
+        # 1. Read row data
+        from src.generate_cell import read_row
+        arabic_text, _, current_bangla = read_row(row_idx, input_file)
+        
+        # 2. Generate text using prompt 1
+        from src.prompt import inject_variables, read_file
+        from src.ai import ask
+        query = inject_variables(read_file("./prompts/1.md"), {
+            "hadis_arabic_text": arabic_text,
+            "previous_generated_bangla": current_bangla
+        })
+        new_text = ask(query).text.strip()
+
+        # 3. Update Excel file with new text
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Excel file not found after regeneration'})
+
+        wb = load_workbook(input_file)
+        sheet_name = get_sheet_name()
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
+        ws = wb[sheet_name]
+
+        header = next(ws.rows)
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
+        
+        secondary_text_col_idx = 1
+        primary_text_col_idx = 0
+        
+        for idx, cell in enumerate(header):
+            if cell.value == secondary_text_col_name:
+                secondary_text_col_idx = idx
+            elif cell.value == primary_text_col_name:
+                primary_text_col_idx = idx
+
+        excel_row = row_idx + 2
+        cell_address = f'{get_column_letter(secondary_text_col_idx + 1)}{excel_row}'
+        ws[cell_address].value = new_text
+        ws[cell_address].fill = PatternFill(fill_type=None)  # Clear existing fill
+
+        wb.save(input_file)
+
+        # 4. Get updated color status and prepare comparison data
+        color_status = get_cell_color_status()
+        row_approval = color_status.get(excel_row, {'col_b': False, 'col_b_type': None})
+        col_b_approved = row_approval['col_b']
+        col_b_type = row_approval['col_b_type']
+
+        # Get original text from Column A for comparison
+        col_a_cell = ws[f'{get_column_letter(primary_text_col_idx + 1)}{excel_row}']
+        col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
+        highlighted_a, highlighted_b, status = compare_text(col_a_text, new_text)
+
+        return jsonify({
+            'status': 'success',
+            'new_text': new_text,
+            'highlighted_html': highlighted_b,
+            'highlighted_a_html': highlighted_a,  # Include highlighted HTML for column A
+            'diff_status': status,
+            'col_b_approved': col_b_approved,  # Add approval status
+            'col_b_type': col_b_type          # Add approval type
+        })
+
+    except FileNotFoundError as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+    except ValueError as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+    except Exception as e:
+        print(f"Error during regeneration or file update for row {row_idx}: {type(e).__name__} - {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': f'An unexpected error occurred: {str(e)}'})
+
+
+@app.route('/regenerate_with_prompt_2', methods=['POST'])
+def regenerate_with_prompt_2():
+    row_idx = request.form.get('row_idx', type=int)
+    try:
+        input_file = get_input_file_path()
+        
+        # 1. Read row data
+        from src.generate_cell import read_row
+        arabic_text, _, current_bangla = read_row(row_idx, input_file)
+        
+        # 2. Generate text using prompt 2
+        from src.prompt import inject_variables, read_file
+        from src.ai import ask
+        query = inject_variables(read_file("./prompts/2.md"), {
+            "hadis_arabic_text": arabic_text,
+            "previous_generated_bangla": current_bangla
+        })
+        new_text = ask(query).text.strip()
+
+        # 3. Update Excel file with new text
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Excel file not found after regeneration'})
+
+        wb = load_workbook(input_file)
+        sheet_name = get_sheet_name()
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
+        ws = wb[sheet_name]
+
+        header = next(ws.rows)
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
+        
+        secondary_text_col_idx = 1
+        primary_text_col_idx = 0
+        
+        for idx, cell in enumerate(header):
+            if cell.value == secondary_text_col_name:
+                secondary_text_col_idx = idx
+            elif cell.value == primary_text_col_name:
+                primary_text_col_idx = idx
+
+        excel_row = row_idx + 2
+        cell_address = f'{get_column_letter(secondary_text_col_idx + 1)}{excel_row}'
+        ws[cell_address].value = new_text
+        ws[cell_address].fill = PatternFill(fill_type=None)  # Clear existing fill
+
+        wb.save(input_file)
+
+        # 4. Get updated color status and prepare comparison data
+        color_status = get_cell_color_status()
+        row_approval = color_status.get(excel_row, {'col_b': False, 'col_b_type': None})
+        col_b_approved = row_approval['col_b']
+        col_b_type = row_approval['col_b_type']
+
+        # Get original text from Column A for comparison
+        col_a_cell = ws[f'{get_column_letter(primary_text_col_idx + 1)}{excel_row}']
+        col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
+        highlighted_a, highlighted_b, status = compare_text(col_a_text, new_text)
+
+        return jsonify({
+            'status': 'success',
+            'new_text': new_text,
+            'highlighted_html': highlighted_b,
+            'highlighted_a_html': highlighted_a,  # Include highlighted HTML for column A
+            'diff_status': status,
+            'col_b_approved': col_b_approved,  # Add approval status
+            'col_b_type': col_b_type          # Add approval type
+        })
+
+    except FileNotFoundError as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+    except ValueError as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+    except Exception as e:
+        print(f"Error during regeneration or file update for row {row_idx}: {type(e).__name__} - {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': f'An unexpected error occurred: {str(e)}'})
+
+
+@app.route('/regenerate_multiple_with_prompt_1', methods=['POST'])
+def regenerate_multiple_with_prompt_1():
+    row_ids = request.json.get('row_ids', [])
+
+    print(f"Regenerating rows with prompt 1: {row_ids}")
+    
+    if not row_ids:
+        return jsonify({'status': 'error', 'message': 'No row IDs provided'})
+    
+    try:
+        import concurrent.futures
+        
+        input_file = get_input_file_path()
+        results = []
+        
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Excel file not found'})
+        
+        # First, generate all the new texts in parallel
+        generated_texts = {}
+        
+        def generate_text_for_row_prompt_1(row_idx):
+            try:
+                print(f"Generating text with prompt 1 for row: {row_idx}")
+                
+                # Read row data
+                from src.generate_cell import read_row
+                arabic_text, _, current_bangla = read_row(row_idx, input_file)
+                
+                # Generate text using prompt 1
+                from src.prompt import inject_variables, read_file
+                from src.ai import ask
+                query = inject_variables(read_file("./prompts/1.md"), {
+                    "hadis_arabic_text": arabic_text,
+                    "previous_generated_bangla": current_bangla
+                })
+                new_text = ask(query).text.strip()
+                
+                return {'status': 'success', 'row_idx': row_idx, 'new_text': new_text}
+            except Exception as e:
+                import traceback
+                return {
+                    'status': 'error',
+                    'row_idx': row_idx,
+                    'message': str(e),
+                    'traceback': traceback.format_exc()
+                }
+        
+        # Generate all texts in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(row_ids))) as executor:
+            # Submit all generation tasks
+            future_to_row = {executor.submit(generate_text_for_row_prompt_1, row_idx): row_idx for row_idx in row_ids}
+            
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_row):
+                row_idx = future_to_row[future]
+                try:
+                    result = future.result()
+                    if result['status'] == 'success':
+                        generated_texts[row_idx] = result['new_text']
+                    else:
+                        results.append(result)  # Store error results
+                except Exception as e:
+                    results.append({
+                        'status': 'error',
+                        'row_idx': row_idx,
+                        'message': str(e)
+                    })
+        
+        # If there are successful generations, update the Excel file only once
+        if generated_texts:
+            try:
+                # Load workbook once
+                wb = load_workbook(input_file)
+                sheet_name = get_sheet_name()
+                
+                if sheet_name not in wb.sheetnames:
+                    return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found'})
+                
+                ws = wb[sheet_name]
+                
+                # Find column indices
+                header = next(ws.rows)
+                primary_text_col_name = get_column_name('primary_text')
+                secondary_text_col_name = get_column_name('secondary_text')
+                
+                secondary_text_col_idx = 1
+                primary_text_col_idx = 0
+                
+                for idx, cell in enumerate(header):
+                    if cell.value == secondary_text_col_name:
+                        secondary_text_col_idx = idx
+                    elif cell.value == primary_text_col_name:
+                        primary_text_col_idx = idx
+                
+                # Update all cells at once
+                for row_idx, new_text in generated_texts.items():
+                    excel_row = row_idx + 2
+                    cell_address = f'{get_column_letter(secondary_text_col_idx + 1)}{excel_row}'
+                    ws[cell_address].value = new_text
+                    ws[cell_address].fill = PatternFill(fill_type=None)  # Clear existing fill
+                
+                # Save the workbook once after all updates
+                wb.save(input_file)
+                
+                # Now collect all comparison results
+                for row_idx, new_text in generated_texts.items():
+                    excel_row = row_idx + 2
+                    
+                    # Get original text for comparison
+                    col_a_cell = ws[f'{get_column_letter(primary_text_col_idx + 1)}{excel_row}']
+                    col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
+                    highlighted_a, highlighted_b, status = compare_text(col_a_text, new_text)
+                    
+                    # Fetch color status for this row
+                    color_status = get_cell_color_status()
+                    row_approval = color_status.get(excel_row, {'col_b': False, 'col_b_type': None})
+                    col_b_approved = row_approval['col_b']
+                    col_b_type = row_approval['col_b_type']
+                    
+                    results.append({
+                        'status': 'success',
+                        'row_idx': row_idx,
+                        'new_text': new_text,
+                        'highlighted_html': highlighted_b,
+                        'highlighted_a_html': highlighted_a,
+                        'diff_status': status,
+                        'col_b_approved': col_b_approved,
+                        'col_b_type': col_b_type
+                    })
+                
+            except Exception as e:
+                import traceback
+                error_message = f"Error updating Excel file: {str(e)}"
+                traceback.print_exc()
+                
+                # Add error for each row that was not already recorded as an error
+                for row_idx in generated_texts.keys():
+                    if not any(r.get('row_idx') == row_idx and r.get('status') == 'error' for r in results):
+                        results.append({
+                            'status': 'error',
+                            'row_idx': row_idx,
+                            'message': error_message
+                        })
+        
+        # Return all results
+        return jsonify({
+            'status': 'success',
+            'message': f'Completed regeneration with prompt 1 for {len(generated_texts)} rows. {len(row_ids) - len(generated_texts)} failed.',
+            'results': results
+        })
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'status': 'error',
+            'message': f'An unexpected error occurred: {str(e)}'
+        })
+
+
+@app.route('/regenerate_multiple_with_prompt_2', methods=['POST'])
+def regenerate_multiple_with_prompt_2():
+    row_ids = request.json.get('row_ids', [])
+
+    print(f"Regenerating rows with prompt 2: {row_ids}")
+    
+    if not row_ids:
+        return jsonify({'status': 'error', 'message': 'No row IDs provided'})
+    
+    try:
+        import concurrent.futures
+        
+        input_file = get_input_file_path()
+        results = []
+        
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Excel file not found'})
+        
+        # First, generate all the new texts in parallel
+        generated_texts = {}
+        
+        def generate_text_for_row_prompt_2(row_idx):
+            try:
+                print(f"Generating text with prompt 2 for row: {row_idx}")
+                
+                # Read row data
+                from src.generate_cell import read_row
+                arabic_text, _, current_bangla = read_row(row_idx, input_file)
+                
+                # Generate text using prompt 2
+                from src.prompt import inject_variables, read_file
+                from src.ai import ask
+                query = inject_variables(read_file("./prompts/2.md"), {
+                    "hadis_arabic_text": arabic_text,
+                    "previous_generated_bangla": current_bangla
+                })
+                new_text = ask(query).text.strip()
+                
+                return {'status': 'success', 'row_idx': row_idx, 'new_text': new_text}
+            except Exception as e:
+                import traceback
+                return {
+                    'status': 'error',
+                    'row_idx': row_idx,
+                    'message': str(e),
+                    'traceback': traceback.format_exc()
+                }
+        
+        # Generate all texts in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(row_ids))) as executor:
+            # Submit all generation tasks
+            future_to_row = {executor.submit(generate_text_for_row_prompt_2, row_idx): row_idx for row_idx in row_ids}
+            
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_row):
+                row_idx = future_to_row[future]
+                try:
+                    result = future.result()
+                    if result['status'] == 'success':
+                        generated_texts[row_idx] = result['new_text']
+                    else:
+                        results.append(result)  # Store error results
+                except Exception as e:
+                    results.append({
+                        'status': 'error',
+                        'row_idx': row_idx,
+                        'message': str(e)
+                    })
+        
+        # If there are successful generations, update the Excel file only once
+        if generated_texts:
+            try:
+                # Load workbook once
+                wb = load_workbook(input_file)
+                sheet_name = get_sheet_name()
+                
+                if sheet_name not in wb.sheetnames:
+                    return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found'})
+                
+                ws = wb[sheet_name]
+                
+                # Find column indices
+                header = next(ws.rows)
+                primary_text_col_name = get_column_name('primary_text')
+                secondary_text_col_name = get_column_name('secondary_text')
+                
+                secondary_text_col_idx = 1
+                primary_text_col_idx = 0
+                
+                for idx, cell in enumerate(header):
+                    if cell.value == secondary_text_col_name:
+                        secondary_text_col_idx = idx
+                    elif cell.value == primary_text_col_name:
+                        primary_text_col_idx = idx
+                
+                # Update all cells at once
+                for row_idx, new_text in generated_texts.items():
+                    excel_row = row_idx + 2
+                    cell_address = f'{get_column_letter(secondary_text_col_idx + 1)}{excel_row}'
+                    ws[cell_address].value = new_text
+                    ws[cell_address].fill = PatternFill(fill_type=None)  # Clear existing fill
+                
+                # Save the workbook once after all updates
+                wb.save(input_file)
+                
+                # Now collect all comparison results
+                for row_idx, new_text in generated_texts.items():
+                    excel_row = row_idx + 2
+                    
+                    # Get original text for comparison
+                    col_a_cell = ws[f'{get_column_letter(primary_text_col_idx + 1)}{excel_row}']
+                    col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
+                    highlighted_a, highlighted_b, status = compare_text(col_a_text, new_text)
+                    
+                    # Fetch color status for this row
+                    color_status = get_cell_color_status()
+                    row_approval = color_status.get(excel_row, {'col_b': False, 'col_b_type': None})
+                    col_b_approved = row_approval['col_b']
+                    col_b_type = row_approval['col_b_type']
+                    
+                    results.append({
+                        'status': 'success',
+                        'row_idx': row_idx,
+                        'new_text': new_text,
+                        'highlighted_html': highlighted_b,
+                        'highlighted_a_html': highlighted_a,
+                        'diff_status': status,
+                        'col_b_approved': col_b_approved,
+                        'col_b_type': col_b_type
+                    })
+                
+            except Exception as e:
+                import traceback
+                error_message = f"Error updating Excel file: {str(e)}"
+                traceback.print_exc()
+                
+                # Add error for each row that was not already recorded as an error
+                for row_idx in generated_texts.keys():
+                    if not any(r.get('row_idx') == row_idx and r.get('status') == 'error' for r in results):
+                        results.append({
+                            'status': 'error',
+                            'row_idx': row_idx,
+                            'message': error_message
+                        })
+        
+        # Return all results
+        return jsonify({
+            'status': 'success',
+            'message': f'Completed regeneration with prompt 2 for {len(generated_texts)} rows. {len(row_ids) - len(generated_texts)} failed.',
+            'results': results
+        })
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'status': 'error',
+            'message': f'An unexpected error occurred: {str(e)}'
+        })
+
 if __name__ == '__main__': app.run(debug=True,port=8000)

@@ -750,6 +750,166 @@ function regenerateCell(button) {
     });
 }
 
+function regenerateWithPrompt1(button) {
+  const rowIdx = button.getAttribute("data-row");
+  const page = button.getAttribute("data-page");
+  const rowsPerPage = button.getAttribute("data-rows");
+
+  const originalContent = button.innerHTML;
+  button.innerHTML = '<span class="loading-spinner"></span>';
+  button.disabled = true;
+
+  showNotification("Regenerating with prompt 1...", "info");
+
+  const container = button.closest(".cell-container");
+  const contentDiv = container.querySelector(".cell-content");
+  const textArea = container.querySelector(".editable");
+
+  const formData = new FormData();
+  formData.append("row_idx", rowIdx);
+  formData.append("page", page);
+  formData.append("rows_per_page", rowsPerPage);
+
+  fetch("/regenerate_with_prompt_1", {
+    method: "POST",
+    body: formData,
+  })
+    .then((response) => {
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      if (data.status === "success") {
+        const row = container.closest("tr");
+        const colAContent = row.querySelector("td:nth-child(2) .cell-content");
+        const cell = contentDiv.closest("td");
+
+        // 1. Update Col B content
+        contentDiv.innerHTML = data.highlighted_html;
+        textArea.value = data.new_text;
+
+        // 2. Update Col A content (if provided)
+        if (data.highlighted_a_html && colAContent) {
+          colAContent.innerHTML = data.highlighted_a_html;
+        }
+
+        // 3. Update diff status
+        cell.classList.remove("same", "different");
+        cell.classList.add(data.diff_status);
+
+        // 4. Update color approval status
+        cell.classList.remove("approved", "yellow-approved", "red-approved");
+        if (data.col_b_approved) {
+          const classMap = {
+            green: "approved",
+            yellow: "yellow-approved",
+            red: "red-approved",
+          };
+          const approvalClass = classMap[data.col_b_type] || "approved"; // Default to green if type is invalid
+          cell.classList.add(approvalClass);
+        }
+
+        showNotification("Regenerated with prompt 1!");
+
+        // 5. Re-setup highlighting
+        setTimeout(() => {
+          setupDiffHighlighting(row);
+        }, 0);
+      } else {
+        showNotification("Error: " + data.message, "error");
+      }
+    })
+    .catch((error) => {
+      console.error("Error regenerating cell with prompt 1:", error);
+      showNotification("Error regenerating cell: " + error.message, "error");
+    })
+    .finally(() => {
+      button.innerHTML = originalContent;
+      button.disabled = false;
+    });
+}
+
+function regenerateWithPrompt2(button) {
+  const rowIdx = button.getAttribute("data-row");
+  const page = button.getAttribute("data-page");
+  const rowsPerPage = button.getAttribute("data-rows");
+
+  const originalContent = button.innerHTML;
+  button.innerHTML = '<span class="loading-spinner"></span>';
+  button.disabled = true;
+
+  showNotification("Regenerating with prompt 2...", "info");
+
+  const container = button.closest(".cell-container");
+  const contentDiv = container.querySelector(".cell-content");
+  const textArea = container.querySelector(".editable");
+
+  const formData = new FormData();
+  formData.append("row_idx", rowIdx);
+  formData.append("page", page);
+  formData.append("rows_per_page", rowsPerPage);
+
+  fetch("/regenerate_with_prompt_2", {
+    method: "POST",
+    body: formData,
+  })
+    .then((response) => {
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      if (data.status === "success") {
+        const row = container.closest("tr");
+        const colAContent = row.querySelector("td:nth-child(2) .cell-content");
+        const cell = contentDiv.closest("td");
+
+        // 1. Update Col B content
+        contentDiv.innerHTML = data.highlighted_html;
+        textArea.value = data.new_text;
+
+        // 2. Update Col A content (if provided)
+        if (data.highlighted_a_html && colAContent) {
+          colAContent.innerHTML = data.highlighted_a_html;
+        }
+
+        // 3. Update diff status
+        cell.classList.remove("same", "different");
+        cell.classList.add(data.diff_status);
+
+        // 4. Update color approval status
+        cell.classList.remove("approved", "yellow-approved", "red-approved");
+        if (data.col_b_approved) {
+          const classMap = {
+            green: "approved",
+            yellow: "yellow-approved",
+            red: "red-approved",
+          };
+          const approvalClass = classMap[data.col_b_type] || "approved"; // Default to green if type is invalid
+          cell.classList.add(approvalClass);
+        }
+
+        showNotification("Regenerated with prompt 2!");
+
+        // 5. Re-setup highlighting
+        setTimeout(() => {
+          setupDiffHighlighting(row);
+        }, 0);
+      } else {
+        showNotification("Error: " + data.message, "error");
+      }
+    })
+    .catch((error) => {
+      console.error("Error regenerating cell with prompt 2:", error);
+      showNotification("Error regenerating cell: " + error.message, "error");
+    })
+    .finally(() => {
+      button.innerHTML = originalContent;
+      button.disabled = false;
+    });
+}
+
 // Function to regenerate all cells in parallel using backend endpoint
 function regenerateAllCells() {
   // Get the selected color from the dropdown
@@ -965,6 +1125,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const generateBtn = e.target.closest(".generate-btn");
     if (generateBtn) {
       regenerateCell(generateBtn);
+      return;
+    }
+
+    const regenerateBtn1 = e.target.closest(".regenerate-btn-1");
+    if (regenerateBtn1) {
+      regenerateWithPrompt1(regenerateBtn1);
+      return;
+    }
+
+    const regenerateBtn2 = e.target.closest(".regenerate-btn-2");
+    if (regenerateBtn2) {
+      regenerateWithPrompt2(regenerateBtn2);
       return;
     }
 
