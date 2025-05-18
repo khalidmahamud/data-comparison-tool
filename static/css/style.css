@@ -1838,3 +1838,8 @@ input:checked + .slider:before {
 textarea {
   font-family: "Inter", "Kalpurush", sans-serif;
 }
+
+/* Body Fixed Position Handling */
+body[data-scroll-y] {
+  overflow: hidden;
+}

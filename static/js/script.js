@@ -910,6 +910,25 @@ function regenerateWithPrompt2(button) {
     });
 }
 
+// Utility functions for managing body scroll
+function disableBodyScroll() {
+  const scrollY = window.scrollY;
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = "100%";
+  document.body.dataset.scrollY = scrollY;
+}
+
+function enableBodyScroll() {
+  const scrollY = document.body.dataset.scrollY || 0;
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.width = "";
+  window.scrollTo(0, parseInt(scrollY || 0));
+  delete document.body.dataset.scrollY;
+}
+
+// Modify the regenerateWithCustomPrompt function
 function regenerateWithCustomPrompt(button) {
   const rowIdx = button.getAttribute("data-row");
   const page = button.getAttribute("data-page");
@@ -939,8 +958,9 @@ function regenerateWithCustomPrompt(button) {
     localStorage.setItem("customPrompt", defaultPrompt);
   }
 
-  // Display the modal
+  // Display the modal and disable body scroll
   customPromptModal.style.display = "flex";
+  disableBodyScroll();
 }
 
 function executeCustomPrompt() {
@@ -957,8 +977,9 @@ function executeCustomPrompt() {
   // Save the prompt to localStorage
   localStorage.setItem("customPrompt", promptText);
 
-  // Close the modal
+  // Close the modal and re-enable body scroll
   document.getElementById("customPromptModal").style.display = "none";
+  enableBodyScroll();
 
   // Find the custom prompt button for this row to show loading state
   const buttons = document.querySelectorAll(".custom-prompt-btn");
@@ -1283,6 +1304,7 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem("customPrompt", customPromptText.value);
     }
     customPromptModal.style.display = "none";
+    enableBodyScroll();
   }
 
   closeCustomPrompt.addEventListener("click", closeCustomPromptModal);
@@ -1296,10 +1318,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Close on escape key press
+  // Global escape key handler for all modals
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && customPromptModal.style.display === "flex") {
-      closeCustomPromptModal();
+    if (e.key === "Escape") {
+      // Handle all potential modals
+      const commentModal = document.getElementById("commentModal");
+      const sidebar = document.getElementById("settings-sidebar");
+
+      if (customPromptModal.style.display === "flex") {
+        closeCustomPromptModal();
+      }
+
+      if (commentModal && commentModal.style.display === "flex") {
+        document.querySelector(".close-comment").click();
+      }
+
+      if (sidebar && sidebar.classList.contains("active")) {
+        document.getElementById("sidebar-close").click();
+      }
+
+      // Handle any other active modals here
     }
   });
 
@@ -1413,6 +1451,7 @@ function setupCommentFunctionality() {
           commentPage.value = page;
           commentRowsPerPage.value = rowsPerPage;
           commentModal.style.display = "flex";
+          disableBodyScroll();
         })
         .catch((error) => {
           console.error("Error fetching comment:", error);
@@ -1421,6 +1460,7 @@ function setupCommentFunctionality() {
           commentPage.value = page;
           commentRowsPerPage.value = rowsPerPage;
           commentModal.style.display = "flex";
+          disableBodyScroll();
         });
     }
   });
@@ -1428,6 +1468,7 @@ function setupCommentFunctionality() {
   // Close modal functions
   function closeModal() {
     commentModal.style.display = "none";
+    enableBodyScroll();
   }
 
   closeComment.addEventListener("click", closeModal);
@@ -1481,6 +1522,7 @@ function setupSidebar() {
   function openSidebar() {
     sidebar.classList.add("active");
     overlay.classList.add("active");
+    disableBodyScroll();
     // Optional: Add class to body if needed for layout adjustments
     // document.body.classList.add('sidebar-active');
   }
@@ -1488,6 +1530,7 @@ function setupSidebar() {
   function closeSidebar() {
     sidebar.classList.remove("active");
     overlay.classList.remove("active");
+    enableBodyScroll();
     // document.body.classList.remove('sidebar-active');
   }
 
