@@ -97,7 +97,7 @@
 
 /* Base Styles */
 body {
-  font-family: "Inter", "Kalpurush", "Poppins", sans-serif;
+  font-family: "Inter", "Kalpurush", sans-serif;
   margin: 0;
   padding: 20px;
   background-color: var(--background-color);
