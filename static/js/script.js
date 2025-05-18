@@ -910,6 +910,161 @@ function regenerateWithPrompt2(button) {
     });
 }
 
+function regenerateWithCustomPrompt(button) {
+  const rowIdx = button.getAttribute("data-row");
+  const page = button.getAttribute("data-page");
+  const rowsPerPage = button.getAttribute("data-rows");
+
+  // Get the modal elements
+  const customPromptModal = document.getElementById("customPromptModal");
+  const promptText = document.getElementById("customPromptText");
+  const promptRowIdx = document.getElementById("promptRowIdx");
+  const promptPage = document.getElementById("promptPage");
+  const promptRowsPerPage = document.getElementById("promptRowsPerPage");
+
+  // Set hidden fields
+  promptRowIdx.value = rowIdx;
+  promptPage.value = page;
+  promptRowsPerPage.value = rowsPerPage;
+
+  // Load default template prompt if empty
+  if (!promptText.value) {
+    promptText.value = `Please analyze this content and provide a Bengali translation:\n\nArabic Text: {arabic_text}\n\nPrevious Bengali Translation: {col_b_text}\n\nOriginal Bengali: {col_a_text}\n\nPlease provide an improved Bengali translation incorporating aspects from both the original and previous translation:`;
+  }
+
+  // Display the modal
+  customPromptModal.style.display = "block";
+}
+
+function executeCustomPrompt() {
+  const promptText = document.getElementById("customPromptText").value;
+  const rowIdx = document.getElementById("promptRowIdx").value;
+  const page = document.getElementById("promptPage").value;
+  const rowsPerPage = document.getElementById("promptRowsPerPage").value;
+
+  if (!promptText.trim()) {
+    showNotification("Please enter a prompt first", "error");
+    return;
+  }
+
+  // Close the modal
+  document.getElementById("customPromptModal").style.display = "none";
+
+  // Find the custom prompt button for this row to show loading state
+  const buttons = document.querySelectorAll(".custom-prompt-btn");
+  let targetButton = null;
+
+  for (const btn of buttons) {
+    if (btn.getAttribute("data-row") === rowIdx) {
+      targetButton = btn;
+      break;
+    }
+  }
+
+  if (!targetButton) {
+    showNotification("Error finding the button", "error");
+    return;
+  }
+
+  const originalContent = targetButton.innerHTML;
+  targetButton.innerHTML = '<span class="loading-spinner"></span>';
+  targetButton.disabled = true;
+
+  showNotification("Generating with custom prompt...", "info");
+
+  const formData = new FormData();
+  formData.append("row_idx", rowIdx);
+  formData.append("prompt", promptText);
+  formData.append("page", page);
+  formData.append("rows_per_page", rowsPerPage);
+
+  fetch("/regenerate_with_custom_prompt", {
+    method: "POST",
+    body: formData,
+  })
+    .then((response) => {
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      if (data.status === "success") {
+        const container = targetButton.closest(".cell-container");
+        const contentDiv = container.querySelector(".cell-content");
+        const textArea = container.querySelector(".editable");
+        const row = container.closest("tr");
+        const colAContent = row.querySelector("td:nth-child(2) .cell-content");
+        const cell = contentDiv.closest("td");
+
+        // 1. Update Col B content
+        contentDiv.innerHTML = data.highlighted_html;
+        textArea.value = data.new_text;
+
+        // 2. Update Col A content (if provided)
+        if (data.highlighted_a_html && colAContent) {
+          colAContent.innerHTML = data.highlighted_a_html;
+        }
+
+        // 3. Update diff status
+        cell.classList.remove("same", "different");
+        cell.classList.add(data.diff_status);
+
+        // 4. Update color approval status
+        cell.classList.remove("approved", "yellow-approved", "red-approved");
+        if (data.col_b_approved) {
+          const classMap = {
+            green: "approved",
+            yellow: "yellow-approved",
+            red: "red-approved",
+          };
+          const approvalClass = classMap[data.col_b_type] || "approved";
+          cell.classList.add(approvalClass);
+        }
+
+        showNotification("Generated with custom prompt!");
+
+        // 5. Re-setup highlighting
+        setTimeout(() => {
+          setupDiffHighlighting(row);
+        }, 0);
+      } else {
+        showNotification("Error: " + data.message, "error");
+      }
+    })
+    .catch((error) => {
+      console.error("Error generating with custom prompt:", error);
+      showNotification("Error: " + error.message, "error");
+    })
+    .finally(() => {
+      targetButton.innerHTML = originalContent;
+      targetButton.disabled = false;
+    });
+}
+
+// Setup custom prompt placeholder insertion
+function setupCustomPromptPlaceholders() {
+  const placeholders = document.querySelectorAll(".placeholder-item");
+  const promptTextarea = document.getElementById("customPromptText");
+
+  placeholders.forEach((placeholder) => {
+    placeholder.addEventListener("click", () => {
+      // Get current cursor position
+      const cursorPos = promptTextarea.selectionStart;
+      const placeholderText = placeholder.textContent;
+
+      // Insert placeholder at cursor position
+      const textBefore = promptTextarea.value.substring(0, cursorPos);
+      const textAfter = promptTextarea.value.substring(cursorPos);
+      promptTextarea.value = textBefore + placeholderText + textAfter;
+
+      // Move cursor after inserted placeholder
+      promptTextarea.focus();
+      promptTextarea.selectionStart = cursorPos + placeholderText.length;
+      promptTextarea.selectionEnd = cursorPos + placeholderText.length;
+    });
+  });
+}
+
 // Function to regenerate all cells in parallel using backend endpoint
 function regenerateAllCells() {
   // Get the selected color from the dropdown
@@ -1105,6 +1260,30 @@ document.addEventListener("DOMContentLoaded", () => {
     regenerateAllBtn.addEventListener("click", regenerateAllCells);
   }
 
+  // Setup custom prompt modal
+  const customPromptModal = document.getElementById("customPromptModal");
+  const closeCustomPrompt = customPromptModal.querySelector(".close-comment");
+  const promptCancelBtn = document.getElementById("promptCancelBtn");
+  const promptGenerateBtn = document.getElementById("promptGenerateBtn");
+
+  function closeCustomPromptModal() {
+    customPromptModal.style.display = "none";
+  }
+
+  closeCustomPrompt.addEventListener("click", closeCustomPromptModal);
+  promptCancelBtn.addEventListener("click", closeCustomPromptModal);
+  promptGenerateBtn.addEventListener("click", executeCustomPrompt);
+
+  // Close when clicking outside modal
+  window.addEventListener("click", (e) => {
+    if (e.target === customPromptModal) {
+      closeCustomPromptModal();
+    }
+  });
+
+  // Setup placeholder insertion
+  setupCustomPromptPlaceholders();
+
   // Event delegation for common elements
   document.addEventListener("click", (e) => {
     const editBtn = e.target.closest(".edit-btn");
@@ -1137,6 +1316,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const regenerateBtn2 = e.target.closest(".regenerate-btn-2");
     if (regenerateBtn2) {
       regenerateWithPrompt2(regenerateBtn2);
+      return;
+    }
+
+    const customPromptBtn = e.target.closest(".custom-prompt-btn");
+    if (customPromptBtn) {
+      regenerateWithCustomPrompt(customPromptBtn);
       return;
     }
 

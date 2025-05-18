@@ -5,8 +5,9 @@ from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from urllib.parse import urlencode
 import uuid
-import yaml
+
 from pathlib import Path
+from src.prompt import inject_variables
 from src.ai import ask
 from src.generate_cell import generate, extract_standard_letters
 from src.config import config, load_config
@@ -1687,5 +1688,92 @@ def regenerate_multiple_with_prompt_2():
             'status': 'error',
             'message': f'An unexpected error occurred: {str(e)}'
         })
+
+@app.route('/regenerate_with_custom_prompt', methods=['POST'])
+def regenerate_with_custom_prompt():
+    row_idx = request.form.get('row_idx', type=int)
+    custom_prompt = request.form.get('prompt', '')
+    
+    if not custom_prompt.strip():
+        return jsonify({'status': 'error', 'message': 'Empty prompt provided'})
+    
+    try:
+        input_file = get_input_file_path()
+        
+        # 1. Read row data
+        from src.generate_cell import read_row
+        arabic_text, col_a_text, col_b_text = read_row(row_idx, input_file)
+        
+        # 2. Process the custom prompt by replacing placeholders
+        processed_prompt = inject_variables(custom_prompt, {
+            "arabic_text": arabic_text,
+            "col_a_text": col_a_text,
+            "col_b_text": col_b_text
+        })
+        
+        # 3. Generate text using the custom prompt
+        from src.ai import ask
+        new_text = ask(processed_prompt).text.strip()
+
+        # 4. Update Excel file with new text
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Excel file not found after regeneration'})
+
+        wb = load_workbook(input_file)
+        sheet_name = get_sheet_name()
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
+        ws = wb[sheet_name]
+
+        header = next(ws.rows)
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
+        
+        secondary_text_col_idx = 1
+        primary_text_col_idx = 0
+        
+        for idx, cell in enumerate(header):
+            if cell.value == secondary_text_col_name:
+                secondary_text_col_idx = idx
+            elif cell.value == primary_text_col_name:
+                primary_text_col_idx = idx
+
+        excel_row = row_idx + 2
+        cell_address = f'{get_column_letter(secondary_text_col_idx + 1)}{excel_row}'
+        ws[cell_address].value = new_text
+        ws[cell_address].fill = PatternFill(fill_type=None)  # Clear existing fill
+
+        wb.save(input_file)
+
+        # 5. Get updated color status and prepare comparison data
+        color_status = get_cell_color_status()
+        row_approval = color_status.get(excel_row, {'col_b': False, 'col_b_type': None})
+        col_b_approved = row_approval['col_b']
+        col_b_type = row_approval['col_b_type']
+
+        # Get original text from Column A for comparison
+        col_a_cell = ws[f'{get_column_letter(primary_text_col_idx + 1)}{excel_row}']
+        col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
+        highlighted_a, highlighted_b, status = compare_text(col_a_text, new_text)
+
+        return jsonify({
+            'status': 'success',
+            'new_text': new_text,
+            'highlighted_html': highlighted_b,
+            'highlighted_a_html': highlighted_a,
+            'diff_status': status,
+            'col_b_approved': col_b_approved,
+            'col_b_type': col_b_type
+        })
+
+    except FileNotFoundError as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+    except ValueError as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+    except Exception as e:
+        print(f"Error during custom prompt regeneration for row {row_idx}: {type(e).__name__} - {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': f'An unexpected error occurred: {str(e)}'})
 
 if __name__ == '__main__': app.run(debug=True,port=8000)

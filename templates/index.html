@@ -156,6 +156,9 @@
                                             <button class="regenerate-btn-2" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" title="Regenerate 2">
                                                 <i class="material-icons">looks_two</i>
                                             </button>
+                                            <button class="custom-prompt-btn" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" title="Custom Prompt">
+                                                <i class="material-icons">edit_note</i>
+                                            </button>
                                             <button class="comment-btn" data-row="{{ item.row_idx }}" data-page="{{ current_page }}" data-rows="{{ rows_per_page }}" title="Add Comment">
                                                 <i class="material-icons">comment</i>
                                             </button>
@@ -222,6 +225,28 @@
             <div class="comment-buttons">
                 <button id="commentCancelBtn" class="comment-cancel-btn">Cancel</button>
                 <button id="commentSaveBtn" class="comment-save-btn">Save Comment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Prompt Modal -->
+    <div id="customPromptModal" class="comment-modal">
+        <div class="comment-modal-content custom-prompt-content">
+            <span class="close-comment">×</span>
+            <h3>Custom Prompt</h3>
+            <p class="prompt-description">Customize your prompt below. You can use these placeholders:</p>
+            <div class="placeholder-list">
+                <span class="placeholder-item">{arabic_text}</span>
+                <span class="placeholder-item">{col_a_text}</span>
+                <span class="placeholder-item">{col_b_text}</span>
+            </div>
+            <textarea id="customPromptText" class="comment-textarea custom-prompt-textarea" placeholder="Enter your custom prompt here..."></textarea>
+            <input type="hidden" id="promptRowIdx" value="">
+            <input type="hidden" id="promptPage" value="">
+            <input type="hidden" id="promptRowsPerPage" value="">
+            <div class="comment-buttons">
+                <button id="promptCancelBtn" class="comment-cancel-btn">Cancel</button>
+                <button id="promptGenerateBtn" class="comment-save-btn">Generate</button>
             </div>
         </div>
     </div>
