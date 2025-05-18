@@ -1289,6 +1289,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const promptGenerateBtn = document.getElementById("promptGenerateBtn");
   const customPromptText = document.getElementById("customPromptText");
 
+  // We'll use direct properties on the modal element to track mouse state
+  customPromptModal.isMouseDownInside = false;
+
   function closeCustomPromptModal() {
     // Save any changes to the prompt content before closing
     if (customPromptText && customPromptText.value.trim()) {
@@ -1302,14 +1305,29 @@ document.addEventListener("DOMContentLoaded", () => {
   promptCancelBtn.addEventListener("click", closeCustomPromptModal);
   promptGenerateBtn.addEventListener("click", executeCustomPrompt);
 
-  // Close when clicking outside modal
-  window.addEventListener("click", (e) => {
-    if (e.target === customPromptModal) {
-      closeCustomPromptModal();
+  // Use event delegation on the modal itself for better control
+  customPromptModal.addEventListener("mousedown", (e) => {
+    // Check if the click is inside the modal content
+    if (e.target.closest(".comment-modal-content")) {
+      customPromptModal.isMouseDownInside = true;
+    } else {
+      customPromptModal.isMouseDownInside = false;
     }
   });
 
-  // Global escape key handler for all modals
+  customPromptModal.addEventListener("mouseup", (e) => {
+    // If clicked outside content area and mousedown was not inside, close the modal
+    if (
+      !e.target.closest(".comment-modal-content") &&
+      !customPromptModal.isMouseDownInside
+    ) {
+      closeCustomPromptModal();
+    }
+    // Reset the flag
+    customPromptModal.isMouseDownInside = false;
+  });
+
+  // Handle ESC key
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       // Handle all potential modals
@@ -1425,6 +1443,9 @@ function setupCommentFunctionality() {
   const commentCancelBtn = document.getElementById("commentCancelBtn");
   const closeComment = document.querySelector(".close-comment");
 
+  // We'll use direct properties on the modal element for tracking
+  commentModal.isMouseDownInside = false;
+
   // Open comment modal
   document.addEventListener("click", (e) => {
     const commentBtn = e.target.closest(".comment-btn");
@@ -1465,11 +1486,26 @@ function setupCommentFunctionality() {
   closeComment.addEventListener("click", closeModal);
   commentCancelBtn.addEventListener("click", closeModal);
 
-  // Close when clicking outside modal
-  window.addEventListener("click", (e) => {
-    if (e.target === commentModal) {
+  // Use event delegation on the modal itself for better control
+  commentModal.addEventListener("mousedown", (e) => {
+    // Check if the click is inside the modal content
+    if (e.target.closest(".comment-modal-content")) {
+      commentModal.isMouseDownInside = true;
+    } else {
+      commentModal.isMouseDownInside = false;
+    }
+  });
+
+  commentModal.addEventListener("mouseup", (e) => {
+    // If clicked outside content area and mousedown was not inside, close the modal
+    if (
+      !e.target.closest(".comment-modal-content") &&
+      !commentModal.isMouseDownInside
+    ) {
       closeModal();
     }
+    // Reset the flag
+    commentModal.isMouseDownInside = false;
   });
 
   // Save comment
