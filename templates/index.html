@@ -229,7 +229,61 @@
         </div>
     </div>
 
-        <!-- Custom Prompt Modal -->    <div id="customPromptModal" class="comment-modal">        <div class="comment-modal-content custom-prompt-content">            <div class="prompt-modal-header">                <h3>Custom Prompt Gallery</h3>                <span class="close-comment">×</span>            </div>                        <div class="prompt-content-container">                <div class="prompt-sidebar">                    <div class="provider-selection">                        <label for="promptProviderSelect">AI Provider</label>                        <select id="promptProviderSelect">                            <option value="google">Google (Gemini)</option>                            <option value="claude">Claude</option>                            <option value="deepseek">DeepSeek</option>                            <option value="grok">Grok</option>                        </select>                    </div>                                        <div class="prompt-list-header">                        <h4>My Prompts</h4>                        <div class="prompt-actions">                            <button id="newPromptBtn" title="Create new prompt" class="prompt-action-btn"><i class="material-icons">add</i></button>                            <button id="exportPromptBtn" title="Export prompts" class="prompt-action-btn"><i class="material-icons">file_download</i></button>                            <button id="importPromptBtn" title="Import prompts" class="prompt-action-btn"><i class="material-icons">file_upload</i></button>                            <input type="file" id="importPromptInput" style="display: none;" accept=".json">                        </div>                    </div>                                        <div class="prompt-tabs" id="promptTabs">                        <!-- Tabs will be generated dynamically -->                    </div>                </div>                                <div class="prompt-editor">                    <div class="prompt-edit-container">                        <div class="prompt-placeholder-header">                            <h4>Prompt Template</h4>                            <div class="placeholder-list">                                <span class="placeholder-item">{{ "{{arabic_text}}" }}</span>                                <span class="placeholder-item">{{ "{{col_a_text}}" }}</span>                                <span class="placeholder-item">{{ "{{col_b_text}}" }}</span>                            </div>                        </div>                        <textarea id="customPromptText" class="custom-prompt-textarea" placeholder="Enter your custom prompt here..." spellcheck="false" dir="auto"></textarea>                    </div>                                        <div class="prompt-actions-footer">                        <button id="promptCancelBtn" class="prompt-cancel-btn">Cancel</button>                        <button id="promptGenerateBtn" class="prompt-generate-btn">Generate Response</button>                    </div>                </div>            </div>                        <input type="hidden" id="promptRowIdx" value="">            <input type="hidden" id="promptPage" value="">            <input type="hidden" id="promptRowsPerPage" value="">            <input type="hidden" id="currentPromptId" value="">        </div>    </div>
+        <!-- Custom Prompt Modal -->
+        <div id="customPromptModal" class="comment-modal">
+            <div class="comment-modal-content custom-prompt-content">
+                <div class="prompt-modal-header">
+                    <h3>Custom Prompt Gallery</h3>
+                    <span class="close-comment">×</span>
+                </div>
+                <div class="prompt-content-container">
+                    <div class="prompt-sidebar">
+                        <div class="provider-selection">
+                            <label for="promptProviderSelect">AI Provider</label>
+                            <select id="promptProviderSelect">
+                                <option value="google">Google (Gemini)</option>
+                                <option value="claude">Claude</option>
+                                <option value="deepseek">DeepSeek</option>
+                                <option value="grok">Grok</option>
+                            </select>
+                        </div>
+                        <div class="prompt-list-header">
+                            <h4>My Prompts</h4>
+                            <div class="prompt-actions">
+                                <button id="newPromptBtn" title="Create new prompt" class="prompt-action-btn"><i class="material-icons">add</i></button>
+                                <button id="exportPromptBtn" title="Export prompts" class="prompt-action-btn"><i class="material-icons">file_download</i></button>
+                                <button id="importPromptBtn" title="Import prompts" class="prompt-action-btn"><i class="material-icons">file_upload</i></button>
+                                <input type="file" id="importPromptInput" style="display: none;" accept=".json">
+                            </div>
+                        </div>
+                        <div class="prompt-tabs" id="promptTabs">
+                            <!-- Tabs will be generated dynamically -->
+                        </div>
+                    </div>
+                    <div class="prompt-editor">
+                        <div class="prompt-edit-container">
+                            <div class="prompt-placeholder-header">
+                                <h4>Prompt Template</h4>
+                                <div class="placeholder-list">
+                                    <span class="placeholder-item">{{ "{{arabic_text}}" }}</span>
+                                    <span class="placeholder-item">{{ "{{col_a_text}}" }}</span>
+                                    <span class="placeholder-item">{{ "{{col_b_text}}" }}</span>
+                                </div>
+                            </div>
+                            <textarea id="customPromptText" class="custom-prompt-textarea" placeholder="Enter your custom prompt here..." spellcheck="false" dir="auto"></textarea>
+                        </div>
+                        <div class="prompt-actions-footer">
+                            <button id="promptCancelBtn" class="prompt-cancel-btn">Cancel</button>
+                            <button id="promptGenerateBtn" class="prompt-generate-btn">Generate Response</button>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="promptRowIdx" value="">
+                <input type="hidden" id="promptPage" value="">
+                <input type="hidden" id="promptRowsPerPage" value="">
+                <input type="hidden" id="currentPromptId" value="">
+            </div>
+        </div>
 
     <!-- Floating Save Button -->
     <div id="selectionButton" style="display: none; position: absolute; z-index: 1000;">
