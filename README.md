@@ -72,10 +72,29 @@ processing:
   start_row: 0
 
 api_settings:
-  gemini_flash_1:
-    api_key: "YOUR_API_KEY_HERE"
+  # Google AI models
+  google_gemini:
+    api_key: "YOUR_GOOGLE_API_KEY"
     model: "gemini-2.0-flash"
     max_tokens: 8192
+
+  # Anthropic Claude models
+  claude_haiku:
+    api_key: "YOUR_ANTHROPIC_API_KEY"
+    model: "claude-3-haiku-20240307"
+    max_tokens: 4096
+
+  # DeepSeek models
+  deepseek_chat:
+    api_key: "YOUR_DEEPSEEK_API_KEY"
+    model: "deepseek-chat"
+    max_tokens: 4096
+
+  # Grok models
+  grok_1:
+    api_key: "YOUR_GROK_API_KEY"
+    model: "grok-1"
+    max_tokens: 4096
 
 file_settings:
   input_file: "input.xlsx"
@@ -108,12 +127,32 @@ excel_settings:
 
 #### API Settings
 
-- **gemini_flash_1**: Configuration for the primary Gemini model
-  - **api_key**: Your Google Gemini API key
-  - **model**: The specific Gemini model to use (e.g., "gemini-2.0-flash")
+The application supports multiple AI providers, each with their own configuration:
+
+- **google_gemini**: Configuration for Google AI models
+
+  - **api_key**: Your Google AI API key
+  - **model**: The specific model to use (e.g., "gemini-2.0-flash")
   - **max_tokens**: Maximum token limit for generated responses
 
-You can configure multiple model entries (gemini_flash_2, gemini_flash_3, etc.) for load balancing.
+- **claude_haiku**: Configuration for Anthropic Claude models
+
+  - **api_key**: Your Anthropic API key
+  - **model**: The specific Claude model to use (e.g., "claude-3-haiku-20240307")
+  - **max_tokens**: Maximum token limit for generated responses
+
+- **deepseek_chat**: Configuration for DeepSeek models
+
+  - **api_key**: Your DeepSeek API key
+  - **model**: The specific DeepSeek model to use
+  - **max_tokens**: Maximum token limit for generated responses
+
+- **grok_1**: Configuration for Grok models
+  - **api_key**: Your Grok API key
+  - **model**: The specific Grok model to use
+  - **max_tokens**: Maximum token limit for generated responses
+
+You can configure multiple entries for each provider for load balancing.
 
 #### File Settings
 
@@ -134,6 +173,70 @@ You can configure multiple model entries (gemini_flash_2, gemini_flash_3, etc.) 
   - **ratio**: Column where similarity ratios will be stored
   - **number**: Column containing row/entry numbers or IDs
   - **arabic_text**: Column containing Arabic text (if applicable)
+
+## Using Multiple AI Providers
+
+The application supports various AI providers:
+
+1. **Usage in Code**:
+
+```python
+from src.ai import ask
+
+# Using Google AI (default provider with model from config or fallback to "gemini-2.0-flash")
+response = ask("Your prompt text here")
+print(response.text)  # Access the text content of the response
+
+# Using Claude AI with model priority: config file > code default
+response = ask("Your prompt text here", provider="claude")
+result_text = response.text  # All providers return a consistent .text property
+
+# Using DeepSeek AI with a specific model (explicitly overriding config and defaults)
+response = ask("Your prompt text here", provider="deepseek", model="deepseek-coder")
+print(f"DeepSeek says: {response.text}")
+
+# Using Grok AI with specific parameters but using model from config or default
+response = ask(
+    "Your prompt text here",
+    provider="grok",
+    config={"temperature": 0.7}
+)
+# Access both the text and raw response if needed
+print(response.text)
+raw_provider_response = response.raw_response  # Access the original provider-specific response
+```
+
+2. **Environment Variables**:
+
+Instead of using the config file, you can set environment variables for API keys:
+
+```
+export GOOGLE_API_KEY=your_google_api_key
+export CLAUDE_API_KEY=your_anthropic_api_key
+export DEEPSEEK_API_KEY=your_deepseek_api_key
+export GROK_API_KEY=your_grok_api_key
+```
+
+3. **Model Selection Priority**:
+
+When selecting which model to use, the system follows this priority order:
+
+1.  Explicitly provided model parameter in the `ask()` function
+2.  Model defined in the config file for the provider
+3.  Default model defined in the code for the provider
+
+4.  **Standardized Response Object**:
+
+All AI providers return a standardized `AIResponse` object with these properties:
+
+- `response.text` - The text content from the AI provider (always available)
+- `response.raw_response` - The original, provider-specific response object
+
+This ensures consistent access to the text content regardless of which AI provider is used.
+
+5.  **Adding New Providers**:
+
+To add support for additional AI providers, extend the AIProvider class in `src/ai.py`.
 
 ## Project Structure
 

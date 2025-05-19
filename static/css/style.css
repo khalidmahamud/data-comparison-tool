@@ -2031,3 +2031,29 @@ html {
 [data-theme="dark"] .prompt-actions button:hover {
   background-color: var(--primary-light);
 }
+
+.provider-selection {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  padding: 0 5px;
+}
+
+.provider-selection label {
+  margin-right: 10px;
+  font-weight: 500;
+}
+
+.provider-selection select {
+  min-width: 180px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+}
+
+[data-theme="dark"] .provider-selection select {
+  background-color: #333;
+  color: #eee;
+  border-color: #555;
+}

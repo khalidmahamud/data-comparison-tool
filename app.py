@@ -1693,6 +1693,7 @@ def regenerate_multiple_with_prompt_2():
 def regenerate_with_custom_prompt():
     row_idx = request.form.get('row_idx', type=int)
     custom_prompt = request.form.get('prompt', '')
+    provider = request.form.get('provider', 'google')
     
     if not custom_prompt.strip():
         return jsonify({'status': 'error', 'message': 'Empty prompt provided'})
@@ -1711,9 +1712,9 @@ def regenerate_with_custom_prompt():
             "col_b_text": col_b_text
         })
         
-        # 3. Generate text using the custom prompt
+        # 3. Generate text using the custom prompt and selected provider
         from src.ai import ask
-        new_text = ask(processed_prompt).text.strip()
+        new_text = ask(processed_prompt, provider=provider).text.strip()
 
         # 4. Update Excel file with new text
         if not os.path.exists(input_file):

@@ -1211,6 +1211,8 @@ function setupPromptManagement() {
 function saveCurrentPrompt() {
   const currentPromptId = document.getElementById("currentPromptId").value;
   const customPromptText = document.getElementById("customPromptText");
+  const providerSelect = document.getElementById("promptProviderSelect");
+  const selectedProvider = providerSelect ? providerSelect.value : null;
 
   if (currentPromptId) {
     const prompts = loadPrompts();
@@ -1225,6 +1227,7 @@ function saveCurrentPrompt() {
       id: currentPromptId,
       name: promptName,
       text: customPromptText.value,
+      provider: selectedProvider,
     };
 
     savePrompts(prompts);
@@ -1235,6 +1238,7 @@ function saveCurrentPrompt() {
 function setActivePrompt(promptId) {
   const customPromptText = document.getElementById("customPromptText");
   const currentPromptId = document.getElementById("currentPromptId");
+  const providerSelect = document.getElementById("promptProviderSelect");
 
   // Update the active tab
   document.querySelectorAll(".prompt-tab").forEach((tab) => {
@@ -1249,6 +1253,19 @@ function setActivePrompt(promptId) {
     customPromptText.value = prompt.text;
     currentPromptId.value = promptId;
     localStorage.setItem("activePromptId", promptId);
+
+    // Set the provider if it was saved with the prompt
+    if (prompt.provider && providerSelect) {
+      providerSelect.value = prompt.provider;
+    }
+  }
+
+  // Set last used provider as default if available
+  if (providerSelect) {
+    const lastProvider = localStorage.getItem("lastUsedProvider");
+    if (lastProvider && !prompt.provider) {
+      providerSelect.value = lastProvider;
+    }
   }
 }
 
@@ -1281,6 +1298,11 @@ function executeCustomPrompt() {
   const rowIdx = document.getElementById("promptRowIdx").value;
   const page = document.getElementById("promptPage").value;
   const rowsPerPage = document.getElementById("promptRowsPerPage").value;
+  const providerSelect = document.getElementById("promptProviderSelect");
+  const selectedProvider = providerSelect ? providerSelect.value : "google";
+
+  // Save the selected provider for future use
+  localStorage.setItem("lastUsedProvider", selectedProvider);
 
   if (!promptText.trim()) {
     showNotification("Please enter a prompt first", "error");
@@ -1311,13 +1333,14 @@ function executeCustomPrompt() {
   targetButton.innerHTML = '<span class="loading-spinner"></span>';
   targetButton.disabled = true;
 
-  showNotification("Generating with custom prompt...", "info");
+  showNotification(`Generating with ${selectedProvider}...`, "info");
 
   const formData = new FormData();
   formData.append("row_idx", rowIdx);
   formData.append("prompt", promptText);
   formData.append("page", page);
   formData.append("rows_per_page", rowsPerPage);
+  formData.append("provider", selectedProvider);
 
   fetch("/regenerate_with_custom_prompt", {
     method: "POST",
@@ -2444,6 +2467,8 @@ function setupPromptManagement() {
 function saveCurrentPrompt() {
   const currentPromptId = document.getElementById("currentPromptId").value;
   const customPromptText = document.getElementById("customPromptText");
+  const providerSelect = document.getElementById("promptProviderSelect");
+  const selectedProvider = providerSelect ? providerSelect.value : null;
 
   if (currentPromptId) {
     const prompts = loadPrompts();
@@ -2458,6 +2483,7 @@ function saveCurrentPrompt() {
       id: currentPromptId,
       name: promptName,
       text: customPromptText.value,
+      provider: selectedProvider,
     };
 
     savePrompts(prompts);
