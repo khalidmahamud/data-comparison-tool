@@ -1260,23 +1260,9 @@ function setActivePrompt(promptId) {
     currentPromptId.value = promptId;
     localStorage.setItem("activePromptId", promptId);
 
-    // Set the provider if it was saved with the prompt
-    if (prompt.provider && providerSelect) {
+    // Set the provider if it exists for this prompt
+    if (providerSelect && prompt.provider) {
       providerSelect.value = prompt.provider;
-    }
-  }
-
-  // Set provider based on precedence: prompt-specific > last used > global > default
-  if (providerSelect) {
-    if (!prompt || !prompt.provider) {
-      const lastProvider = localStorage.getItem("lastUsedProvider");
-      const globalProvider = getGlobalAIProvider();
-
-      if (lastProvider) {
-        providerSelect.value = lastProvider;
-      } else if (globalProvider) {
-        providerSelect.value = globalProvider;
-      }
     }
   }
 }
@@ -2516,6 +2502,7 @@ function saveCurrentPrompt() {
 function setActivePrompt(promptId) {
   const customPromptText = document.getElementById("customPromptText");
   const currentPromptId = document.getElementById("currentPromptId");
+  const providerSelect = document.getElementById("promptProviderSelect");
 
   // Update the active tab
   document.querySelectorAll(".prompt-tab").forEach((tab) => {
@@ -2530,6 +2517,11 @@ function setActivePrompt(promptId) {
     customPromptText.value = prompt.text;
     currentPromptId.value = promptId;
     localStorage.setItem("activePromptId", promptId);
+
+    // Set the provider if it exists for this prompt
+    if (providerSelect && prompt.provider) {
+      providerSelect.value = prompt.provider;
+    }
   }
 }
 
