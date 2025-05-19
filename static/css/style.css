@@ -1847,3 +1847,187 @@ body[data-scroll-y] {
 html {
   scrollbar-gutter: stable;
 }
+
+/* Prompt Gallery Styles */
+.prompt-tabs-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.prompt-tabs {
+  display: flex;
+  overflow-x: auto;
+  flex-grow: 1;
+  scrollbar-width: thin;
+  max-width: calc(100% - 130px);
+  padding-bottom: 2px;
+}
+
+.prompt-tabs::-webkit-scrollbar {
+  height: 5px;
+}
+
+.prompt-tabs::-webkit-scrollbar-track {
+  background: var(--light-gray);
+  border-radius: 10px;
+}
+
+.prompt-tabs::-webkit-scrollbar-thumb {
+  background: var(--medium-gray);
+  border-radius: 10px;
+}
+
+.prompt-tab {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  color: var(--text-color);
+  background-color: var(--light-gray);
+  margin-right: 2px;
+  min-width: 80px;
+  max-width: 150px;
+  position: relative;
+  transition: var(--transition);
+  border: 1px solid var(--medium-gray);
+}
+
+.prompt-tab-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+  padding-right: 24px; /* Reserve space for delete button to avoid UI shift */
+}
+
+.prompt-tab-input {
+  background: none;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  font-size: inherit;
+  font-family: inherit;
+  color: inherit;
+  width: 100%;
+  min-width: 50px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt-tab.active {
+  background-color: var(--card-bg);
+  color: var(--primary-color);
+  font-weight: 500;
+  border-top-color: var(--primary-color);
+  border-top-width: 2px;
+  z-index: 1;
+}
+
+.prompt-tab:hover:not(.active) {
+  background-color: var(--primary-light);
+}
+
+.prompt-tab-delete {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  text-align: center;
+  line-height: 20px;
+}
+
+.prompt-tab:hover .prompt-tab-delete {
+  display: block;
+}
+
+.prompt-tab-delete:hover {
+  opacity: 1;
+  color: var(--error-color);
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+}
+
+.prompt-actions button {
+  background-color: var(--light-gray);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.prompt-actions button:hover {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.prompt-edit-container {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.placeholder-list {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.comment-modal-content.custom-prompt-content {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.comment-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .prompt-tab {
+  background-color: var(--card-bg);
+}
+
+[data-theme="dark"] .prompt-tab.active {
+  background-color: var(--background-color);
+  border-top-color: var(--primary-color);
+}
+
+[data-theme="dark"] .prompt-tab:hover:not(.active) {
+  background-color: var(--primary-light);
+}
+
+[data-theme="dark"] .prompt-tab-input {
+  background-color: transparent;
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .prompt-actions button {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .prompt-actions button:hover {
+  background-color: var(--primary-light);
+}

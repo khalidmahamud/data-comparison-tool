@@ -927,7 +927,6 @@ function regenerateWithCustomPrompt(button) {
 
   // Get the modal elements
   const customPromptModal = document.getElementById("customPromptModal");
-  const promptText = document.getElementById("customPromptText");
   const promptRowIdx = document.getElementById("promptRowIdx");
   const promptPage = document.getElementById("promptPage");
   const promptRowsPerPage = document.getElementById("promptRowsPerPage");
@@ -937,25 +936,348 @@ function regenerateWithCustomPrompt(button) {
   promptPage.value = page;
   promptRowsPerPage.value = rowsPerPage;
 
-  // Load saved prompt from localStorage if it exists
-  const savedPrompt = localStorage.getItem("customPrompt");
-
-  // Load default template prompt if nothing is saved or use the saved prompt
-  if (savedPrompt) {
-    promptText.value = savedPrompt;
-  } else if (!promptText.value) {
-    const defaultPrompt = `Please analyze this content and provide a Bengali translation:\n\nArabic Text: {arabic_text}\n\nPrevious Bengali Translation: {col_b_text}\n\nOriginal Bengali: {col_a_text}\n\nPlease provide an improved Bengali translation incorporating aspects from both the original and previous translation:`;
-    promptText.value = defaultPrompt;
-    localStorage.setItem("customPrompt", defaultPrompt);
-  }
+  // Load prompts and select the last active one
+  initPromptGallery();
 
   // Display the modal and disable body scroll
   customPromptModal.style.display = "flex";
   disableBodyScroll();
 }
 
+// Initialize prompt gallery with tabs and functionality
+function initPromptGallery() {
+  const promptTabs = document.getElementById("promptTabs");
+  const customPromptText = document.getElementById("customPromptText");
+  const currentPromptId = document.getElementById("currentPromptId");
+
+  // Load saved prompts from localStorage
+  let prompts = loadPrompts();
+
+  // Create default prompt if no prompts exist
+  if (Object.keys(prompts).length === 0) {
+    const defaultPromptId = "default-prompt";
+    const defaultPromptName = "Default Prompt";
+    const defaultPromptText = `Please analyze this content and provide a Bengali translation:\n\nArabic Text: {{arabic_text}}\n\nPrevious Bengali Translation: {{col_b_text}}\n\nOriginal Bengali: {{col_a_text}}\n\nPlease provide an improved Bengali translation incorporating aspects from both the original and previous translation:`;
+
+    prompts[defaultPromptId] = {
+      id: defaultPromptId,
+      name: defaultPromptName,
+      text: defaultPromptText,
+    };
+
+    savePrompts(prompts);
+  }
+
+  // Get last active prompt ID from localStorage or use the first prompt
+  let activePromptId = localStorage.getItem("activePromptId");
+  if (!activePromptId || !prompts[activePromptId]) {
+    activePromptId = Object.keys(prompts)[0];
+    localStorage.setItem("activePromptId", activePromptId);
+  }
+
+  // Clear existing tabs
+  promptTabs.innerHTML = "";
+
+  // Create tabs for each prompt
+  Object.values(prompts).forEach((prompt) => {
+    const tab = document.createElement("div");
+    tab.className = `prompt-tab ${
+      prompt.id === activePromptId ? "active" : ""
+    }`;
+    tab.dataset.promptId = prompt.id;
+
+    const tabContent = document.createElement("div");
+    tabContent.className = "prompt-tab-content";
+
+    // Create editable input for tab name
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "prompt-tab-input";
+    input.value = prompt.name;
+    input.title = prompt.name;
+    input.maxLength = 50;
+
+    // Create delete button that shows on hover
+    const deleteBtn = document.createElement("i");
+    deleteBtn.className = "material-icons prompt-tab-delete";
+    deleteBtn.textContent = "close";
+    deleteBtn.title = "Delete prompt";
+
+    // Add event listeners for input
+    input.addEventListener("blur", () => {
+      if (input.value.trim()) {
+        // Save current prompt with new name
+        const promptId = tab.dataset.promptId;
+        const prompts = loadPrompts();
+        if (prompts[promptId]) {
+          prompts[promptId].name = input.value.trim();
+          savePrompts(prompts);
+        }
+      } else {
+        // Reset to previous name if empty
+        const promptId = tab.dataset.promptId;
+        const prompts = loadPrompts();
+        if (prompts[promptId]) {
+          input.value = prompts[promptId].name;
+        }
+      }
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        input.blur();
+      }
+      e.stopPropagation(); // Prevent tab switching when typing
+    });
+
+    // Prevent focus when clicking on input to allow tab switching
+    input.addEventListener("click", (e) => {
+      if (!tab.classList.contains("active")) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Save any changes to the current prompt before switching
+        saveCurrentPrompt();
+        // Switch to the selected prompt
+        setActivePrompt(prompt.id);
+      } else {
+        // Only allow editing when tab is already active
+        e.stopPropagation();
+      }
+    });
+
+    // Listen for double-click to start editing the tab name
+    tabContent.addEventListener("dblclick", (e) => {
+      if (tab.classList.contains("active")) {
+        input.focus();
+        input.select();
+        e.stopPropagation();
+      }
+    });
+
+    // Click on tab will activate it
+    tab.addEventListener("click", (e) => {
+      if (
+        !tab.classList.contains("active") &&
+        e.target !== input &&
+        e.target !== deleteBtn
+      ) {
+        // Save any changes to the current prompt before switching
+        saveCurrentPrompt();
+        // Switch to the selected prompt
+        setActivePrompt(prompt.id);
+      }
+    });
+
+    // Delete button handler
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deletePrompt(prompt.id);
+    });
+
+    // Append elements
+    tabContent.appendChild(input);
+    tabContent.appendChild(deleteBtn);
+    tab.appendChild(tabContent);
+    promptTabs.appendChild(tab);
+  });
+
+  // Set the active prompt in the editor
+  setActivePrompt(activePromptId);
+}
+
+// Delete a prompt and update UI
+function deletePrompt(promptId) {
+  const prompts = loadPrompts();
+
+  // Don't delete if it's the only prompt
+  if (Object.keys(prompts).length <= 1) {
+    showNotification("Cannot delete the only prompt", "error");
+    return;
+  }
+
+  // Confirm deletion
+  if (confirm(`Are you sure you want to delete this prompt?`)) {
+    // Check if deleting the active prompt
+    const isActive =
+      promptId === document.getElementById("currentPromptId").value;
+
+    // Delete the prompt
+    delete prompts[promptId];
+    savePrompts(prompts);
+
+    // If deleted active prompt, set another one as active
+    if (isActive) {
+      const newActiveId = Object.keys(prompts)[0];
+      localStorage.setItem("activePromptId", newActiveId);
+    }
+
+    // Reload prompt gallery
+    initPromptGallery();
+  }
+}
+
+// Add, delete, import, export prompt functions
+function setupPromptManagement() {
+  const newPromptBtn = document.getElementById("newPromptBtn");
+  const exportPromptBtn = document.getElementById("exportPromptBtn");
+  const importPromptBtn = document.getElementById("importPromptBtn");
+  const importPromptInput = document.getElementById("importPromptInput");
+
+  // Create new prompt
+  newPromptBtn.addEventListener("click", () => {
+    // Save current prompt first
+    saveCurrentPrompt();
+
+    // Create a new prompt
+    const promptId = "prompt-" + Date.now();
+    const prompts = loadPrompts();
+
+    prompts[promptId] = {
+      id: promptId,
+      name: "New Prompt",
+      text: "",
+    };
+
+    savePrompts(prompts);
+
+    // Reload prompt gallery and set the new prompt as active
+    initPromptGallery();
+    setActivePrompt(promptId);
+  });
+
+  // Export prompts
+  exportPromptBtn.addEventListener("click", () => {
+    const prompts = loadPrompts();
+    const promptsJSON = JSON.stringify(prompts, null, 2);
+
+    // Create a download link
+    const blob = new Blob([promptsJSON], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "custom_prompts.json";
+    document.body.appendChild(a);
+    a.click();
+
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 0);
+  });
+
+  // Import prompts button
+  importPromptBtn.addEventListener("click", () => {
+    importPromptInput.click();
+  });
+
+  // Import prompts from file
+  importPromptInput.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedPrompts = JSON.parse(e.target.result);
+
+        // Validate the imported data
+        if (typeof importedPrompts !== "object") {
+          throw new Error("Invalid prompt format");
+        }
+
+        // Merge with existing prompts (imported prompts take precedence)
+        const existingPrompts = loadPrompts();
+        const mergedPrompts = { ...existingPrompts, ...importedPrompts };
+
+        savePrompts(mergedPrompts);
+
+        // Reload prompt gallery
+        initPromptGallery();
+        showNotification("Prompts imported successfully", "success");
+      } catch (error) {
+        showNotification("Failed to import prompts: " + error.message, "error");
+      }
+
+      // Reset the file input
+      importPromptInput.value = "";
+    };
+
+    reader.readAsText(file);
+  });
+}
+
+// Save current prompt
+function saveCurrentPrompt() {
+  const currentPromptId = document.getElementById("currentPromptId").value;
+  const customPromptText = document.getElementById("customPromptText");
+
+  if (currentPromptId) {
+    const prompts = loadPrompts();
+
+    // Get current prompt name from the active tab
+    const activeTab = document.querySelector(
+      `.prompt-tab.active .prompt-tab-input`
+    );
+    const promptName = activeTab ? activeTab.value.trim() : "Untitled Prompt";
+
+    prompts[currentPromptId] = {
+      id: currentPromptId,
+      name: promptName,
+      text: customPromptText.value,
+    };
+
+    savePrompts(prompts);
+  }
+}
+
+// Set active prompt by ID
+function setActivePrompt(promptId) {
+  const customPromptText = document.getElementById("customPromptText");
+  const currentPromptId = document.getElementById("currentPromptId");
+
+  // Update the active tab
+  document.querySelectorAll(".prompt-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.promptId === promptId);
+  });
+
+  // Load the prompt data
+  const prompts = loadPrompts();
+  const prompt = prompts[promptId];
+
+  if (prompt) {
+    customPromptText.value = prompt.text;
+    currentPromptId.value = promptId;
+    localStorage.setItem("activePromptId", promptId);
+  }
+}
+
+// Load prompts from localStorage
+function loadPrompts() {
+  try {
+    const promptsJson = localStorage.getItem("customPrompts");
+    return promptsJson ? JSON.parse(promptsJson) : {};
+  } catch (error) {
+    console.error("Error loading prompts:", error);
+    return {};
+  }
+}
+
+// Save prompts to localStorage
+function savePrompts(prompts) {
+  try {
+    localStorage.setItem("customPrompts", JSON.stringify(prompts));
+  } catch (error) {
+    console.error("Error saving prompts:", error);
+  }
+}
+
 function executeCustomPrompt() {
-  const promptText = document.getElementById("customPromptText").value;
+  // Save the current prompt before executing
+  saveCurrentPrompt();
+
+  const customPromptText = document.getElementById("customPromptText");
+  const promptText = customPromptText.value;
   const rowIdx = document.getElementById("promptRowIdx").value;
   const page = document.getElementById("promptPage").value;
   const rowsPerPage = document.getElementById("promptRowsPerPage").value;
@@ -964,9 +1286,6 @@ function executeCustomPrompt() {
     showNotification("Please enter a prompt first", "error");
     return;
   }
-
-  // Save the prompt to localStorage
-  localStorage.setItem("customPrompt", promptText);
 
   // Close the modal and re-enable body scroll
   document.getElementById("customPromptModal").style.display = "none";
@@ -1292,11 +1611,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // We'll use direct properties on the modal element to track mouse state
   customPromptModal.isMouseDownInside = false;
 
+  // Setup prompt gallery management
+  setupPromptManagement();
+
   function closeCustomPromptModal() {
-    // Save any changes to the prompt content before closing
-    if (customPromptText && customPromptText.value.trim()) {
-      localStorage.setItem("customPrompt", customPromptText.value);
-    }
+    // Save any changes to the current prompt before closing
+    saveCurrentPrompt();
     customPromptModal.style.display = "none";
     enableBodyScroll();
   }
@@ -1855,4 +2175,312 @@ function setupRecalculateRatioButton() {
         recalculateBtn.textContent = "Recalculate Ratios";
       });
   });
+}
+
+// Initialize prompt gallery with tabs and functionality
+function initPromptGallery() {
+  const promptTabs = document.getElementById("promptTabs");
+  const customPromptText = document.getElementById("customPromptText");
+  const currentPromptId = document.getElementById("currentPromptId");
+
+  // Load saved prompts from localStorage
+  let prompts = loadPrompts();
+
+  // Create default prompt if no prompts exist
+  if (Object.keys(prompts).length === 0) {
+    const defaultPromptId = "default-prompt";
+    const defaultPromptName = "Default Prompt";
+    const defaultPromptText = `Please analyze this content and provide a Bengali translation:\n\nArabic Text: {{arabic_text}}\n\nPrevious Bengali Translation: {{col_b_text}}\n\nOriginal Bengali: {{col_a_text}}\n\nPlease provide an improved Bengali translation incorporating aspects from both the original and previous translation:`;
+
+    prompts[defaultPromptId] = {
+      id: defaultPromptId,
+      name: defaultPromptName,
+      text: defaultPromptText,
+    };
+
+    savePrompts(prompts);
+  }
+
+  // Get last active prompt ID from localStorage or use the first prompt
+  let activePromptId = localStorage.getItem("activePromptId");
+  if (!activePromptId || !prompts[activePromptId]) {
+    activePromptId = Object.keys(prompts)[0];
+    localStorage.setItem("activePromptId", activePromptId);
+  }
+
+  // Clear existing tabs
+  promptTabs.innerHTML = "";
+
+  // Create tabs for each prompt
+  Object.values(prompts).forEach((prompt) => {
+    const tab = document.createElement("div");
+    tab.className = `prompt-tab ${
+      prompt.id === activePromptId ? "active" : ""
+    }`;
+    tab.dataset.promptId = prompt.id;
+
+    const tabContent = document.createElement("div");
+    tabContent.className = "prompt-tab-content";
+
+    // Create editable input for tab name
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "prompt-tab-input";
+    input.value = prompt.name;
+    input.title = prompt.name;
+    input.maxLength = 50;
+
+    // Create delete button that shows on hover
+    const deleteBtn = document.createElement("i");
+    deleteBtn.className = "material-icons prompt-tab-delete";
+    deleteBtn.textContent = "close";
+    deleteBtn.title = "Delete prompt";
+
+    // Add event listeners for input
+    input.addEventListener("blur", () => {
+      if (input.value.trim()) {
+        // Save current prompt with new name
+        const promptId = tab.dataset.promptId;
+        const prompts = loadPrompts();
+        if (prompts[promptId]) {
+          prompts[promptId].name = input.value.trim();
+          savePrompts(prompts);
+        }
+      } else {
+        // Reset to previous name if empty
+        const promptId = tab.dataset.promptId;
+        const prompts = loadPrompts();
+        if (prompts[promptId]) {
+          input.value = prompts[promptId].name;
+        }
+      }
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        input.blur();
+      }
+      e.stopPropagation(); // Prevent tab switching when typing
+    });
+
+    // Prevent focus when clicking on input to allow tab switching
+    input.addEventListener("click", (e) => {
+      if (!tab.classList.contains("active")) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Save any changes to the current prompt before switching
+        saveCurrentPrompt();
+        // Switch to the selected prompt
+        setActivePrompt(prompt.id);
+      } else {
+        // Only allow editing when tab is already active
+        e.stopPropagation();
+      }
+    });
+
+    // Listen for double-click to start editing the tab name
+    tabContent.addEventListener("dblclick", (e) => {
+      if (tab.classList.contains("active")) {
+        input.focus();
+        input.select();
+        e.stopPropagation();
+      }
+    });
+
+    // Click on tab will activate it
+    tab.addEventListener("click", (e) => {
+      if (
+        !tab.classList.contains("active") &&
+        e.target !== input &&
+        e.target !== deleteBtn
+      ) {
+        // Save any changes to the current prompt before switching
+        saveCurrentPrompt();
+        // Switch to the selected prompt
+        setActivePrompt(prompt.id);
+      }
+    });
+
+    // Delete button handler
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deletePrompt(prompt.id);
+    });
+
+    // Append elements
+    tabContent.appendChild(input);
+    tabContent.appendChild(deleteBtn);
+    tab.appendChild(tabContent);
+    promptTabs.appendChild(tab);
+  });
+
+  // Set the active prompt in the editor
+  setActivePrompt(activePromptId);
+}
+
+// Delete a prompt and update UI
+function deletePrompt(promptId) {
+  const prompts = loadPrompts();
+
+  // Don't delete if it's the only prompt
+  if (Object.keys(prompts).length <= 1) {
+    showNotification("Cannot delete the only prompt", "error");
+    return;
+  }
+
+  // Confirm deletion
+  if (confirm(`Are you sure you want to delete this prompt?`)) {
+    // Check if deleting the active prompt
+    const isActive =
+      promptId === document.getElementById("currentPromptId").value;
+
+    // Delete the prompt
+    delete prompts[promptId];
+    savePrompts(prompts);
+
+    // If deleted active prompt, set another one as active
+    if (isActive) {
+      const newActiveId = Object.keys(prompts)[0];
+      localStorage.setItem("activePromptId", newActiveId);
+    }
+
+    // Reload prompt gallery
+    initPromptGallery();
+  }
+}
+
+// Add, delete, import, export prompt functions
+function setupPromptManagement() {
+  const newPromptBtn = document.getElementById("newPromptBtn");
+  const exportPromptBtn = document.getElementById("exportPromptBtn");
+  const importPromptBtn = document.getElementById("importPromptBtn");
+  const importPromptInput = document.getElementById("importPromptInput");
+
+  // Create new prompt
+  newPromptBtn.addEventListener("click", () => {
+    // Save current prompt first
+    saveCurrentPrompt();
+
+    // Create a new prompt
+    const promptId = "prompt-" + Date.now();
+    const prompts = loadPrompts();
+
+    prompts[promptId] = {
+      id: promptId,
+      name: "New Prompt",
+      text: "",
+    };
+
+    savePrompts(prompts);
+
+    // Reload prompt gallery and set the new prompt as active
+    initPromptGallery();
+    setActivePrompt(promptId);
+  });
+
+  // Export prompts
+  exportPromptBtn.addEventListener("click", () => {
+    const prompts = loadPrompts();
+    const promptsJSON = JSON.stringify(prompts, null, 2);
+
+    // Create a download link
+    const blob = new Blob([promptsJSON], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "custom_prompts.json";
+    document.body.appendChild(a);
+    a.click();
+
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 0);
+  });
+
+  // Import prompts button
+  importPromptBtn.addEventListener("click", () => {
+    importPromptInput.click();
+  });
+
+  // Import prompts from file
+  importPromptInput.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedPrompts = JSON.parse(e.target.result);
+
+        // Validate the imported data
+        if (typeof importedPrompts !== "object") {
+          throw new Error("Invalid prompt format");
+        }
+
+        // Merge with existing prompts (imported prompts take precedence)
+        const existingPrompts = loadPrompts();
+        const mergedPrompts = { ...existingPrompts, ...importedPrompts };
+
+        savePrompts(mergedPrompts);
+
+        // Reload prompt gallery
+        initPromptGallery();
+        showNotification("Prompts imported successfully", "success");
+      } catch (error) {
+        showNotification("Failed to import prompts: " + error.message, "error");
+      }
+
+      // Reset the file input
+      importPromptInput.value = "";
+    };
+
+    reader.readAsText(file);
+  });
+}
+
+// Save current prompt
+function saveCurrentPrompt() {
+  const currentPromptId = document.getElementById("currentPromptId").value;
+  const customPromptText = document.getElementById("customPromptText");
+
+  if (currentPromptId) {
+    const prompts = loadPrompts();
+
+    // Get current prompt name from the active tab
+    const activeTab = document.querySelector(
+      `.prompt-tab.active .prompt-tab-input`
+    );
+    const promptName = activeTab ? activeTab.value.trim() : "Untitled Prompt";
+
+    prompts[currentPromptId] = {
+      id: currentPromptId,
+      name: promptName,
+      text: customPromptText.value,
+    };
+
+    savePrompts(prompts);
+  }
+}
+
+// Set active prompt by ID
+function setActivePrompt(promptId) {
+  const customPromptText = document.getElementById("customPromptText");
+  const currentPromptId = document.getElementById("currentPromptId");
+
+  // Update the active tab
+  document.querySelectorAll(".prompt-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.promptId === promptId);
+  });
+
+  // Load the prompt data
+  const prompts = loadPrompts();
+  const prompt = prompts[promptId];
+
+  if (prompt) {
+    customPromptText.value = prompt.text;
+    currentPromptId.value = promptId;
+    localStorage.setItem("activePromptId", promptId);
+  }
 }

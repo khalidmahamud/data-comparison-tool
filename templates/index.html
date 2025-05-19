@@ -232,20 +232,42 @@
     <!-- Custom Prompt Modal -->
     <div id="customPromptModal" class="comment-modal">
         <div class="comment-modal-content custom-prompt-content" style="width: min(90%, 800px);">
-            <span class="close-comment">×</span>
-            <h3 style="margin-bottom: 1rem;">Custom Prompt</h3>
-            <div class="placeholder-list">
-                <span class="placeholder-item">{{ "{{arabic_text}}" }}</span>
-                <span class="placeholder-item">{{ "{{col_a_text}}" }}</span>
-                <span class="placeholder-item">{{ "{{col_b_text}}" }}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin-bottom: 1rem;">Custom Prompt Gallery</h3>
+                <span class="close-comment" style="display: none;">×</span>
             </div>
-            <textarea id="customPromptText" class="comment-textarea custom-prompt-textarea" placeholder="Enter your custom prompt here..." spellcheck="false" dir="auto"></textarea>
+            
+            <div class="prompt-tabs-container">
+                <div class="prompt-tabs" id="promptTabs">
+                    <!-- Tabs will be generated dynamically -->
+                </div>
+                <div class="prompt-actions">
+                    <button id="newPromptBtn" title="Create new prompt"><i class="material-icons">add</i></button>
+                    <button id="exportPromptBtn" title="Export prompts"><i class="material-icons">file_download</i></button>
+                    <button id="importPromptBtn" title="Import prompts"><i class="material-icons">file_upload</i></button>
+                    <input type="file" id="importPromptInput" style="display: none;" accept=".json">
+                </div>
+            </div>
+            
+            <div class="prompt-edit-container">
+                <textarea id="customPromptText" class="comment-textarea custom-prompt-textarea" placeholder="Enter your custom prompt here..." spellcheck="false" dir="auto"></textarea>
+                <div class="placeholder-list">
+                    <span class="placeholder-item">{{ "{{arabic_text}}" }}</span>
+                    <span class="placeholder-item">{{ "{{col_a_text}}" }}</span>
+                    <span class="placeholder-item">{{ "{{col_b_text}}" }}</span>
+                </div>
+            </div>
+            
             <input type="hidden" id="promptRowIdx" value="">
             <input type="hidden" id="promptPage" value="">
             <input type="hidden" id="promptRowsPerPage" value="">
-            <div class="comment-buttons">
-                <button id="promptCancelBtn" class="comment-cancel-btn">Cancel</button>
-                <button id="promptGenerateBtn" class="comment-save-btn">Generate</button>
+            <input type="hidden" id="currentPromptId" value="">
+            
+            <div class="comment-buttons" style="margin-top: 0;">
+                <div>
+                    <button id="promptCancelBtn" class="comment-cancel-btn">Cancel</button>
+                    <button id="promptGenerateBtn" class="comment-save-btn">Generate</button>
+                </div>
             </div>
         </div>
     </div>
