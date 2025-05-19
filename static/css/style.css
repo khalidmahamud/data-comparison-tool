@@ -1908,9 +1908,9 @@ html {
 
 .prompt-tab.active {
   background-color: var(--card-bg);
+  outline: 2px solid var(--primary-color);
   color: var(--primary-color);
   font-weight: 500;
-  border-top-color: var(--primary-color);
   border-top-width: 2px;
   z-index: 1;
 }

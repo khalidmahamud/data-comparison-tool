@@ -2562,3 +2562,16 @@ function getGlobalAIProvider() {
   // Default to google if nothing is set
   return "google";
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+  tippy("[title]", {
+    content(reference) {
+      return reference.getAttribute("title");
+    },
+    onShow(instance) {
+      instance.reference.removeAttribute("title");
+    },
+
+    delay: [50, 10],
+  });
+});
