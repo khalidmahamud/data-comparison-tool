@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional, Union, Literal
 import os
 from src.config import config
+from openai import OpenAI  # Import OpenAI SDK for Deepseek and Grok
 
 # Type for supported AI providers
 ProviderType = Literal["google", "claude", "deepseek", "grok"]
@@ -11,7 +12,7 @@ PROVIDER_DEFAULT_MODELS = {
     "google": "gemini-2.0-flash",
     "claude": "claude-3-haiku-20240307",
     "deepseek": "deepseek-chat",
-    "grok": "grok-1"
+    "grok": "grok-3"  # Note: Example uses "grok-3-beta", you may need to adjust this
 }
 
 class AIResponse:
@@ -42,11 +43,11 @@ class GoogleAI(AIProvider):
         self.client = genai.GenerativeModel(model)
         
     def generate_content(self, query: str, generation_config: Dict[str, Any]) -> AIResponse:
+        # Google expects "max_output_tokens", so we keep the original config key
         response = self.client.generate_content(
             contents=query,
             generation_config=generation_config
         )
-        # Google AI returns response with .text property already
         return AIResponse(text=response.text, raw_response=response)
 
 class ClaudeAI(AIProvider):
@@ -60,61 +61,51 @@ class ClaudeAI(AIProvider):
             raise ImportError("Please install anthropic package: pip install anthropic")
         
     def generate_content(self, query: str, generation_config: Dict[str, Any]) -> AIResponse:
+        # Claude uses "max_tokens", adjust key if provided as "max_output_tokens"
         max_tokens = generation_config.get("max_output_tokens", 1024)
         response = self.client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": query}]
         )
-        # Claude returns response.content for the text
         return AIResponse(text=response.content[0].text, raw_response=response)
 
 class DeepseekAI(AIProvider):
-    """DeepSeek AI implementation"""
+    """DeepSeek AI implementation using OpenAI SDK"""
     def __init__(self, api_key: str, model: str):
         super().__init__(api_key, model)
-        try:
-            import deepseek
-            self.client = deepseek.DeepSeek(api_key=api_key)
-        except ImportError:
-            raise ImportError("Please install deepseek package: pip install deepseek")
+        # Use OpenAI client with Deepseek's base URL
+        self.client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         
     def generate_content(self, query: str, generation_config: Dict[str, Any]) -> AIResponse:
-        # Implement DeepSeek API interaction based on their documentation
-        # This is a placeholder and needs to be updated with actual API usage
+        # OpenAI SDK expects "max_tokens", adjust from "max_output_tokens" if needed
         max_tokens = generation_config.get("max_output_tokens", 1024)
-        response = self.client.completions.create(
+        messages = [{"role": "user", "content": query}]
+        response = self.client.chat.completions.create(
             model=self.model,
-            prompt=query,
-            max_tokens=max_tokens
+            messages=messages,
+            max_tokens=max_tokens,
         )
-        # Assuming DeepSeek returns completion.text or similar
-        # Adjust this based on actual API response format
-        response_text = response.choices[0].text if hasattr(response, 'choices') else str(response)
+        response_text = response.choices[0].message.content
         return AIResponse(text=response_text, raw_response=response)
 
 class GrokAI(AIProvider):
-    """Grok AI implementation"""
+    """Grok AI implementation using OpenAI SDK"""
     def __init__(self, api_key: str, model: str):
         super().__init__(api_key, model)
-        try:
-            import grok
-            self.client = grok.Grok(api_key=api_key)
-        except ImportError:
-            raise ImportError("Please install grok package: pip install grok")
+        # Use OpenAI client with Grok's base URL
+        self.client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
         
     def generate_content(self, query: str, generation_config: Dict[str, Any]) -> AIResponse:
-        # Implement Grok API interaction based on their documentation
-        # This is a placeholder and needs to be updated with actual API usage
+        # OpenAI SDK expects "max_tokens", adjust from "max_output_tokens" if needed
         max_tokens = generation_config.get("max_output_tokens", 1024)
-        response = self.client.create_completion(
+        messages = [{"role": "user", "content": query}]
+        response = self.client.chat.completions.create(
             model=self.model,
-            prompt=query,
-            max_tokens=max_tokens
+            messages=messages,
+            max_tokens=max_tokens,
         )
-        # Assuming Grok returns completion.text or similar
-        # Adjust this based on actual API response format
-        response_text = response.choices[0].text if hasattr(response, 'choices') else str(response)
+        response_text = response.choices[0].message.content
         return AIResponse(text=response_text, raw_response=response)
 
 # Provider factory
@@ -196,4 +187,3 @@ def ask(
     
     # Generate content
     return ai_provider.generate_content(query, generation_config)
-
