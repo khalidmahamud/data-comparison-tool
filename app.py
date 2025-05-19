@@ -701,8 +701,9 @@ def preview_diff():
 @app.route('/regenerate_cell', methods=['POST'])
 def regenerate_cell():
     row_idx = request.form.get('row_idx', type=int)
+    provider = request.form.get('provider', 'google')
     try:
-        new_text = generate(row_idx, get_input_file_path()).strip()
+        new_text = generate(row_idx, get_input_file_path(), provider=provider).strip()
 
         input_file = get_input_file_path()
         
@@ -769,6 +770,7 @@ def regenerate_cell():
 @app.route('/regenerate_multiple_cells', methods=['POST'])
 def regenerate_multiple_cells():
     row_ids = request.json.get('row_ids', [])
+    provider = request.json.get('provider', 'google')
 
     print(f"Regenerating rows: {row_ids}")
     
@@ -790,7 +792,7 @@ def regenerate_multiple_cells():
         def generate_text_for_row(row_idx):
             try:
                 print(f"Generating text for row: {row_idx}")
-                new_text = generate(row_idx, input_file).strip()
+                new_text = generate(row_idx, input_file, provider=provider).strip()
                 return {'status': 'success', 'row_idx': row_idx, 'new_text': new_text}
             except Exception as e:
                 import traceback
@@ -1061,6 +1063,7 @@ def get_arabic_text():
 def translate_arabic_to_bangla():
     try:
         row_idx = request.args.get('row_idx', type=int)
+        provider = request.args.get('provider', 'google')
         
         if row_idx is None:
             return jsonify({'status': 'error', 'message': 'Row index is required'})
@@ -1114,9 +1117,9 @@ def translate_arabic_to_bangla():
             "arabic_text": arabic_text
         })
 
-        # Call the AI model for translation
+        # Call the AI model for translation using specified provider
        
-        translated_text = ask(query).text.strip()
+        translated_text = ask(query, provider=provider).text.strip()
 
         return jsonify({
             'status': 'success',
@@ -1209,6 +1212,7 @@ def utility_processor():
 @app.route('/regenerate_with_prompt_1', methods=['POST'])
 def regenerate_with_prompt_1():
     row_idx = request.form.get('row_idx', type=int)
+    provider = request.form.get('provider', 'google')
     try:
         input_file = get_input_file_path()
         
@@ -1223,7 +1227,7 @@ def regenerate_with_prompt_1():
             "hadis_arabic_text": arabic_text,
             "previous_generated_bangla": current_bangla
         })
-        new_text = ask(query).text.strip()
+        new_text = ask(query, provider=provider).text.strip()
 
         # 3. Update Excel file with new text
         if not os.path.exists(input_file):
@@ -1290,6 +1294,7 @@ def regenerate_with_prompt_1():
 @app.route('/regenerate_with_prompt_2', methods=['POST'])
 def regenerate_with_prompt_2():
     row_idx = request.form.get('row_idx', type=int)
+    provider = request.form.get('provider', 'google')
     try:
         input_file = get_input_file_path()
         
@@ -1304,7 +1309,7 @@ def regenerate_with_prompt_2():
             "hadis_arabic_text": arabic_text,
             "previous_generated_bangla": current_bangla
         })
-        new_text = ask(query).text.strip()
+        new_text = ask(query, provider=provider).text.strip()
 
         # 3. Update Excel file with new text
         if not os.path.exists(input_file):
@@ -1371,6 +1376,7 @@ def regenerate_with_prompt_2():
 @app.route('/regenerate_multiple_with_prompt_1', methods=['POST'])
 def regenerate_multiple_with_prompt_1():
     row_ids = request.json.get('row_ids', [])
+    provider = request.json.get('provider', 'google')
 
     print(f"Regenerating rows with prompt 1: {row_ids}")
     
@@ -1404,7 +1410,7 @@ def regenerate_multiple_with_prompt_1():
                     "hadis_arabic_text": arabic_text,
                     "previous_generated_bangla": current_bangla
                 })
-                new_text = ask(query).text.strip()
+                new_text = ask(query, provider=provider).text.strip()
                 
                 return {'status': 'success', 'row_idx': row_idx, 'new_text': new_text}
             except Exception as e:
@@ -1532,6 +1538,7 @@ def regenerate_multiple_with_prompt_1():
 @app.route('/regenerate_multiple_with_prompt_2', methods=['POST'])
 def regenerate_multiple_with_prompt_2():
     row_ids = request.json.get('row_ids', [])
+    provider = request.json.get('provider', 'google')
 
     print(f"Regenerating rows with prompt 2: {row_ids}")
     
@@ -1565,7 +1572,7 @@ def regenerate_multiple_with_prompt_2():
                     "hadis_arabic_text": arabic_text,
                     "previous_generated_bangla": current_bangla
                 })
-                new_text = ask(query).text.strip()
+                new_text = ask(query, provider=provider).text.strip()
                 
                 return {'status': 'success', 'row_idx': row_idx, 'new_text': new_text}
             except Exception as e:

@@ -2057,3 +2057,34 @@ html {
   color: #eee;
   border-color: #555;
 }
+
+.sidebar-section.ai-provider-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.sidebar-section.ai-provider-section .section-title {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.global-provider-selection {
+  display: flex;
+  width: 100%;
+}
+
+.global-provider-selection select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+}
+
+[data-theme="dark"] .global-provider-selection select {
+  background-color: #333;
+  color: #eee;
+  border-color: #555;
+}

@@ -674,12 +674,13 @@ function regenerateCell(button) {
   const rowIdx = button.getAttribute("data-row");
   const page = button.getAttribute("data-page");
   const rowsPerPage = button.getAttribute("data-rows");
+  const globalProvider = getGlobalAIProvider();
 
   const originalContent = button.innerHTML;
   button.innerHTML = '<span class="loading-spinner"></span>';
   button.disabled = true;
 
-  showNotification("Regenerating...", "info");
+  showNotification(`Regenerating with ${globalProvider}...`, "info");
 
   const container = button.closest(".cell-container");
   const contentDiv = container.querySelector(".cell-content");
@@ -689,6 +690,7 @@ function regenerateCell(button) {
   formData.append("row_idx", rowIdx);
   formData.append("page", page);
   formData.append("rows_per_page", rowsPerPage);
+  formData.append("provider", globalProvider);
 
   fetch("/regenerate_cell", {
     method: "POST",
@@ -754,12 +756,13 @@ function regenerateWithPrompt1(button) {
   const rowIdx = button.getAttribute("data-row");
   const page = button.getAttribute("data-page");
   const rowsPerPage = button.getAttribute("data-rows");
+  const globalProvider = getGlobalAIProvider();
 
   const originalContent = button.innerHTML;
   button.innerHTML = '<span class="loading-spinner"></span>';
   button.disabled = true;
 
-  showNotification("Regenerating with prompt 1...", "info");
+  showNotification(`Regenerating with prompt 1 (${globalProvider})...`, "info");
 
   const container = button.closest(".cell-container");
   const contentDiv = container.querySelector(".cell-content");
@@ -769,6 +772,7 @@ function regenerateWithPrompt1(button) {
   formData.append("row_idx", rowIdx);
   formData.append("page", page);
   formData.append("rows_per_page", rowsPerPage);
+  formData.append("provider", globalProvider);
 
   fetch("/regenerate_with_prompt_1", {
     method: "POST",
@@ -834,12 +838,13 @@ function regenerateWithPrompt2(button) {
   const rowIdx = button.getAttribute("data-row");
   const page = button.getAttribute("data-page");
   const rowsPerPage = button.getAttribute("data-rows");
+  const globalProvider = getGlobalAIProvider();
 
   const originalContent = button.innerHTML;
   button.innerHTML = '<span class="loading-spinner"></span>';
   button.disabled = true;
 
-  showNotification("Regenerating with prompt 2...", "info");
+  showNotification(`Regenerating with prompt 2 (${globalProvider})...`, "info");
 
   const container = button.closest(".cell-container");
   const contentDiv = container.querySelector(".cell-content");
@@ -849,6 +854,7 @@ function regenerateWithPrompt2(button) {
   formData.append("row_idx", rowIdx);
   formData.append("page", page);
   formData.append("rows_per_page", rowsPerPage);
+  formData.append("provider", globalProvider);
 
   fetch("/regenerate_with_prompt_2", {
     method: "POST",
@@ -1260,11 +1266,17 @@ function setActivePrompt(promptId) {
     }
   }
 
-  // Set last used provider as default if available
+  // Set provider based on precedence: prompt-specific > last used > global > default
   if (providerSelect) {
-    const lastProvider = localStorage.getItem("lastUsedProvider");
-    if (lastProvider && !prompt.provider) {
-      providerSelect.value = lastProvider;
+    if (!prompt || !prompt.provider) {
+      const lastProvider = localStorage.getItem("lastUsedProvider");
+      const globalProvider = getGlobalAIProvider();
+
+      if (lastProvider) {
+        providerSelect.value = lastProvider;
+      } else if (globalProvider) {
+        providerSelect.value = globalProvider;
+      }
     }
   }
 }
@@ -1434,6 +1446,7 @@ function regenerateAllCells() {
   // Get the selected color from the dropdown
   const colorSelect = document.getElementById("regenerate-color-select");
   const selectedColor = colorSelect ? colorSelect.value : "any";
+  const globalProvider = getGlobalAIProvider();
 
   // Find all regenerate buttons
   let regenerateButtons = Array.from(
@@ -1501,7 +1514,10 @@ function regenerateAllCells() {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ row_ids: rowIds }),
+    body: JSON.stringify({
+      row_ids: rowIds,
+      provider: globalProvider,
+    }),
   })
     .then((response) => {
       if (!response.ok)
@@ -1603,6 +1619,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize theme
   initTheme();
+
+  // Initialize global AI provider
+  initGlobalAIProvider();
 
   // Setup form handlers
   setupFormHandlers();
@@ -2112,8 +2131,11 @@ function generateBanglaText(button) {
   // Show loading notification
   showNotification("Translating to Bangla...", "info");
 
-  // Fetch AI-translated Bangla text
-  fetch(`/translate_arabic_to_bangla?row_idx=${actualRow}`)
+  // Fetch AI-translated Bangla text with global provider
+  const globalProvider = getGlobalAIProvider();
+  fetch(
+    `/translate_arabic_to_bangla?row_idx=${actualRow}&provider=${globalProvider}`
+  )
     .then((response) => response.json())
     .then((data) => {
       if (data.status === "success") {
@@ -2509,4 +2531,42 @@ function setActivePrompt(promptId) {
     currentPromptId.value = promptId;
     localStorage.setItem("activePromptId", promptId);
   }
+}
+
+// Global AI provider functionality
+function initGlobalAIProvider() {
+  const globalProviderSelect = document.getElementById("globalProviderSelect");
+
+  if (!globalProviderSelect) return;
+
+  // Load the last selected provider from localStorage
+  const savedProvider = localStorage.getItem("globalAIProvider");
+  if (savedProvider) {
+    globalProviderSelect.value = savedProvider;
+  }
+
+  // Save selected provider when changed
+  globalProviderSelect.addEventListener("change", function () {
+    const selectedProvider = this.value;
+    localStorage.setItem("globalAIProvider", selectedProvider);
+    showNotification(`Global AI provider set to ${selectedProvider}`, "info");
+  });
+}
+
+// Helper function to get the global AI provider
+function getGlobalAIProvider() {
+  // First check localStorage
+  const savedProvider = localStorage.getItem("globalAIProvider");
+  if (savedProvider) {
+    return savedProvider;
+  }
+
+  // Then check if the select element exists and has a value
+  const globalProviderSelect = document.getElementById("globalProviderSelect");
+  if (globalProviderSelect) {
+    return globalProviderSelect.value;
+  }
+
+  // Default to google if nothing is set
+  return "google";
 }

@@ -46,6 +46,7 @@ def read_row(row_idx: int, input_file: str) -> Tuple[str, str, str]:
     
     return arabic_text, hadith_details, current_analysis
 
+
 def save_to_excel(row_idx: int, new_text: str, input_file: str, output_file: str = None) -> bool:
     """
     Save the generated text back to Excel file.
@@ -118,7 +119,7 @@ def save_to_excel(row_idx: int, new_text: str, input_file: str, output_file: str
             return False
 
 
-def generate(row_idx: int, input_file: str) -> str:
+def generate(row_idx: int, input_file: str, provider: str = 'google') -> str:
     arabic_text, hadith_details, current_analysis = read_row(row_idx, input_file)
 
     query = inject_variables(read_file("./prompts/regenerate_hadis_prompt.md"), {
@@ -127,6 +128,5 @@ def generate(row_idx: int, input_file: str) -> str:
         "current_analysis": current_analysis
     })
 
-
-    return ask(query).text
+    return ask(query, provider=provider).text
     
