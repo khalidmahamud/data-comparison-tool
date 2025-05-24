@@ -2898,38 +2898,47 @@ function showKeepThisButton(removedSpan, diffId, mouseEvent = null) {
   keepBtn.setAttribute("data-diff-id", diffId);
   keepBtn.setAttribute("data-row-idx", rowIdx);
 
-  // Position the button at mouse location if available, otherwise use span position
-  let left, top;
+  // Position the button at the bottom center of the changed text
+  const rect = removedSpan.getBoundingClientRect();
 
-  if (mouseEvent) {
-    // Use mouse position
-    left = mouseEvent.pageX - keepBtn.offsetWidth / 2;
-    top = mouseEvent.pageY + 10; // 10px below mouse cursor
-  } else {
-    // Fallback to span position (existing behavior)
-    const rect = removedSpan.getBoundingClientRect();
-    left =
-      rect.left + rect.width / 2 - keepBtn.offsetWidth / 2 + window.scrollX;
-    top = rect.bottom + 5 + window.scrollY;
+  // Calculate button dimensions (estimate if not visible)
+  keepBtn.style.display = "flex";
+  keepBtn.style.visibility = "hidden"; // Make it invisible while measuring
+  const btnRect = keepBtn.getBoundingClientRect();
+  const btnWidth = btnRect.width || 120; // fallback width
+  const btnHeight = btnRect.height || 40; // fallback height
+
+  // Position at bottom center of the span
+  let left = rect.left + rect.width / 2 - btnWidth / 2 + window.scrollX;
+  let top = rect.bottom + 8 + window.scrollY; // 8px below the span
+
+  // Ensure button stays within viewport bounds
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  // Horizontal bounds checking - keep it centered but within viewport
+  if (left + btnWidth > viewportWidth - 10) {
+    left = viewportWidth - btnWidth - 10;
+  }
+  if (left < 10) {
+    left = 10;
   }
 
-  keepBtn.style.display = "flex";
+  // Vertical bounds checking - if no space below, position above
+  if (top + btnHeight > window.scrollY + viewportHeight - 10) {
+    // Position above the span instead
+    top = rect.top - btnHeight - 8 + window.scrollY;
+
+    // If still not enough space above, position at top of viewport
+    if (top < window.scrollY + 10) {
+      top = window.scrollY + 10;
+    }
+  }
+
+  // Apply final position and make visible
   keepBtn.style.left = `${left}px`;
   keepBtn.style.top = `${top}px`;
-
-  // Keep button on screen
-  const btnRect = keepBtn.getBoundingClientRect();
-  if (btnRect.right > window.innerWidth) {
-    keepBtn.style.left = `${
-      window.innerWidth - btnRect.width - 10 + window.scrollX
-    }px`;
-  }
-  if (btnRect.left < 0) {
-    keepBtn.style.left = `${10 + window.scrollX}px`;
-  }
-  if (btnRect.top < 0) {
-    keepBtn.style.top = `${10 + window.scrollY}px`;
-  }
+  keepBtn.style.visibility = "visible";
 }
 
 function hideKeepThisButton() {
