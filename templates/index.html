@@ -43,7 +43,7 @@
                     <input type="hidden" name="{{ key }}" value="{{ value }}">
                 {% endfor %}
 
-                <select name="filter_comment" id="main-filter-comment-select" class="filter-select" onchange="this.form.submit()" style="max-width: 160px; overflow: hidden;">
+                <select name="filter_comment" id="main-filter-comment-select" class="filter-select" onchange="this.form.submit()" style="max-width: 200px; min-width: 150px;">
                     <option value="">All Comments</option>
                     <!-- Options will be populated dynamically -->
                 </select>
@@ -487,9 +487,17 @@
                         // Add comment options
                         data.comments.forEach(comment => {
                             const option = document.createElement('option');
-                           
                             option.value = comment;
-                            option.textContent = comment;
+                            
+                            // Truncate long comments for display but keep full text in title
+                            const maxLength = 30;
+                            const displayText = comment.length > maxLength 
+                                ? comment.substring(0, maxLength) + '...' 
+                                : comment;
+                            
+                            option.textContent = displayText;
+                            option.title = comment; // Full text on hover
+                            
                             if (comment === currentValue) {
                                 option.selected = true;
                             }
