@@ -72,11 +72,11 @@ function matchSpans(addedSpans, removedSpans, isTemp = false) {
       addedSpan.addEventListener("mouseover", handleAddedOver);
       addedSpan.addEventListener("mouseout", handleAddedOut);
 
-      const handleRemovedOver = () => {
+      const handleRemovedOver = (e) => {
         addedSpan.classList.add(hoverClass);
         // Show "Keep This" button for removed spans in Column A (only for non-temp spans)
         if (!isTemp) {
-          showKeepThisButton(matchedRemovedSpan, diffId);
+          showKeepThisButton(matchedRemovedSpan, diffId, e);
         }
       };
       const handleRemovedOut = () => {
@@ -2605,7 +2605,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // Keep This button functionality
 let keepThisTimeout = null;
 
-function showKeepThisButton(removedSpan, diffId) {
+function showKeepThisButton(removedSpan, diffId, mouseEvent = null) {
   const keepBtn = document.getElementById("keepThisButton");
   if (!keepBtn) return;
 
@@ -2625,13 +2625,38 @@ function showKeepThisButton(removedSpan, diffId) {
   keepBtn.setAttribute("data-diff-id", diffId);
   keepBtn.setAttribute("data-row-idx", rowIdx);
 
-  // Position the button near the hovered span
-  const rect = removedSpan.getBoundingClientRect();
+  // Position the button at mouse location if available, otherwise use span position
+  let left, top;
+
+  if (mouseEvent) {
+    // Use mouse position
+    left = mouseEvent.pageX - keepBtn.offsetWidth / 2;
+    top = mouseEvent.pageY + 10; // 10px below mouse cursor
+  } else {
+    // Fallback to span position (existing behavior)
+    const rect = removedSpan.getBoundingClientRect();
+    left =
+      rect.left + rect.width / 2 - keepBtn.offsetWidth / 2 + window.scrollX;
+    top = rect.bottom + 5 + window.scrollY;
+  }
+
   keepBtn.style.display = "flex";
-  keepBtn.style.left = `${
-    rect.left + rect.width / 2 - keepBtn.offsetWidth / 2 + window.scrollX
-  }px`;
-  keepBtn.style.top = `${rect.bottom + 5 + window.scrollY}px`;
+  keepBtn.style.left = `${left}px`;
+  keepBtn.style.top = `${top}px`;
+
+  // Keep button on screen
+  const btnRect = keepBtn.getBoundingClientRect();
+  if (btnRect.right > window.innerWidth) {
+    keepBtn.style.left = `${
+      window.innerWidth - btnRect.width - 10 + window.scrollX
+    }px`;
+  }
+  if (btnRect.left < 0) {
+    keepBtn.style.left = `${10 + window.scrollX}px`;
+  }
+  if (btnRect.top < 0) {
+    keepBtn.style.top = `${10 + window.scrollY}px`;
+  }
 }
 
 function hideKeepThisButton() {
