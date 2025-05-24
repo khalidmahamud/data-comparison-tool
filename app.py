@@ -710,15 +710,15 @@ def save_selection():
             else:
                 selections_ws = selections_wb.create_sheet('selections')
                 # Add headers
-                selections_ws['A1'] = 'hadith_id'
-                selections_ws['B1'] = 'selected_text'
+                selections_ws['A1'] = 'id'
+                selections_ws['B1'] = 'text'
         else:
             selections_wb = Workbook()
             selections_ws = selections_wb.active
             selections_ws.title = 'selections'
             # Add headers
-            selections_ws['A1'] = 'hadith_id'
-            selections_ws['B1'] = 'selected_text'
+            selections_ws['A1'] = 'id'
+            selections_ws['B1'] = 'text'
         
         # Check for duplicates before adding
         duplicate_found = False
