@@ -5,6 +5,7 @@ from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from urllib.parse import urlencode
 import uuid
+from datetime import datetime
 
 from pathlib import Path
 from src.prompt import inject_variables
@@ -138,7 +139,9 @@ def compare_text(text1, text2):
             result1.append(words1_segment)
             result2.append(words2_segment)
         else:
-            diff_id = f"diff-{uuid.uuid4()}"
+            # Create deterministic diff_id based on position and content
+            diff_id = f"diff-{diff_id_counter}-{tag}-{i1}-{i2}-{j1}-{j2}"
+            diff_id_counter += 1
             if words1_segment:
                 result1.append(f'<span class="removed" data-diff-id="{diff_id}">{words1_segment}</span>')
             if words2_segment:
@@ -659,111 +662,162 @@ def save_selection():
     selected_text = request.form.get('selected_text', '')
     row_idx = request.form.get('row_idx', type=int)
     
-    if not selected_text.strip():
-        return jsonify({'status': 'error', 'message': 'No text selected'})
-    
-    if row_idx is None:
-        return jsonify({'status': 'error', 'message': 'Row index not provided'})
-    
-    input_file = get_input_file_path()
-    if not os.path.exists(input_file):
-        return jsonify({'status': 'error', 'message': 'Excel file not found'})
+    if not selected_text or row_idx is None:
+        return jsonify({'status': 'error', 'message': 'Missing required data'})
     
     try:
-        # Read the current row data to get hadith_id
+        # Load existing selections or create new
+        selections_file = 'selections.xlsx'
+        
+        if os.path.exists(selections_file):
+            df = pd.read_excel(selections_file)
+        else:
+            df = pd.DataFrame(columns=['row_idx', 'selected_text', 'timestamp'])
+        
+        # Add new selection
+        new_selection = pd.DataFrame({
+            'row_idx': [row_idx],
+            'selected_text': [selected_text],
+            'timestamp': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
+        })
+        
+        df = pd.concat([df, new_selection], ignore_index=True)
+        
+        # Save to Excel
+        df.to_excel(selections_file, index=False)
+        
+        return jsonify({'status': 'success', 'message': 'Selection saved successfully'})
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Error saving selection: {str(e)}'})
+
+@app.route('/keep_this', methods=['POST'])
+def keep_this():
+    row_idx = request.form.get('row_idx', type=int)
+    diff_id = request.form.get('diff_id', '')
+    
+    if row_idx is None or not diff_id:
+        return jsonify({'status': 'error', 'message': 'Missing required data'})
+    
+    try:
+        input_file = get_input_file_path()
+        if not os.path.exists(input_file):
+            return jsonify({'status': 'error', 'message': 'Excel file not found'})
+        
         wb = load_workbook(input_file)
         sheet_name = get_sheet_name()
-        
         if sheet_name not in wb.sheetnames:
-            return jsonify({'status': 'error', 'message': f'Sheet {sheet_name} not found'})
-        
+            return jsonify({'status': 'error', 'message': f'{sheet_name} sheet not found in Excel file'})
         ws = wb[sheet_name]
         
-        # Get column name from config for hadith_id
-        number_col = get_column_name('number')  # hadith_id
-        
-        # Find column index for hadith_id
+        # Get column indices
         header = next(ws.rows)
-        hadith_id_col_idx = None
+        primary_text_col_idx, secondary_text_col_idx = 0, 1
+        
+        primary_text_col_name = get_column_name('primary_text')
+        secondary_text_col_name = get_column_name('secondary_text')
+        
         for idx, cell in enumerate(header):
-            if cell.value == number_col:
-                hadith_id_col_idx = idx
-                break
+            if cell.value == primary_text_col_name:
+                primary_text_col_idx = idx
+            elif cell.value == secondary_text_col_name:
+                secondary_text_col_idx = idx
         
-        # Get the hadith_id from the specific row (row_idx + 2 because of 0-based index + header)
         excel_row = row_idx + 2
-        row_data = list(ws.rows)[excel_row - 1]  # -1 because rows are 1-indexed
         
-        # Extract hadith_id
-        hadith_id = ""
-        if hadith_id_col_idx is not None:
-            hadith_id = str(row_data[hadith_id_col_idx].value or "")
+        # Get current texts
+        col_a_cell = ws[f'{get_column_letter(primary_text_col_idx + 1)}{excel_row}']
+        col_b_cell = ws[f'{get_column_letter(secondary_text_col_idx + 1)}{excel_row}']
         
-        # Create new Excel file for selections
-        selections_file = "selections.xlsx"
+        col_a_text = str(col_a_cell.value) if col_a_cell.value is not None else ''
+        col_b_text = str(col_b_cell.value) if col_b_cell.value is not None else ''
         
-        # Check if selections file exists, if not create it
-        if os.path.exists(selections_file):
-            selections_wb = load_workbook(selections_file)
-            if 'selections' in selections_wb.sheetnames:
-                selections_ws = selections_wb['selections']
-            else:
-                selections_ws = selections_wb.create_sheet('selections')
-                # Add headers
-                selections_ws['A1'] = 'id'
-                selections_ws['B1'] = 'text'
-        else:
-            selections_wb = Workbook()
-            selections_ws = selections_wb.active
-            selections_ws.title = 'selections'
-            # Add headers
-            selections_ws['A1'] = 'id'
-            selections_ws['B1'] = 'text'
+        # Perform the selective replacement
+        new_col_b_text = perform_selective_replacement(col_a_text, col_b_text, diff_id)
         
-        # Check for duplicates before adding
-        duplicate_found = False
-        for row_num in range(2, selections_ws.max_row + 1):
-            existing_hadith_id = str(selections_ws[f'A{row_num}'].value or "")
-            existing_text = str(selections_ws[f'B{row_num}'].value or "")
-            
-            if existing_hadith_id == hadith_id and existing_text == selected_text:
-                duplicate_found = True
-                break
+        # Update Column B in Excel
+        col_b_cell.value = new_col_b_text
         
-        if duplicate_found:
-            return jsonify({
-                'status': 'warning', 
-                'message': 'This selection already exists and was not added again',
-                'text': selected_text,
-                'hadith_id': hadith_id
-            })
+        # Clear any existing fill color for Column B
+        col_b_cell.fill = PatternFill()
         
-        # Find the next empty row
-        row = 2
-        while selections_ws[f'A{row}'].value:
-            row += 1
+        wb.save(input_file)
         
-        # Add the new selection
-        selections_ws[f'A{row}'] = hadith_id
-        selections_ws[f'B{row}'] = selected_text
+        # Generate new comparison for response
+        highlighted_a, highlighted_b, status = compare_text(col_a_text, new_col_b_text)
         
-        # Save the selections file
-        selections_wb.save(selections_file)
+        # Get color status
+        color_status = get_cell_color_status()
+        row_approval = color_status.get(excel_row, {'col_b': False, 'col_b_type': None})
+        col_b_approved = row_approval['col_b']
+        col_b_type = row_approval['col_b_type']
         
         return jsonify({
-            'status': 'success', 
-            'message': 'Selection saved to new Excel file', 
-            'text': selected_text,
-            'hadith_id': hadith_id,
-            'row': row,
-            'file': selections_file
+            'status': 'success',
+            'new_text': new_col_b_text,
+            'new_content': highlighted_b,  # This is what the frontend expects
+            'highlighted_html': highlighted_b,
+            'highlighted_a_html': highlighted_a,
+            'diff_status': status,
+            'col_b_approved': col_b_approved,
+            'col_b_type': col_b_type
         })
         
     except Exception as e:
+        print(f"Error in keep_this for row {row_idx}: {type(e).__name__} - {e}")
         import traceback
-        print(f"Error saving selection: {e}")
-        print(traceback.format_exc())
-        return jsonify({'status': 'error', 'message': str(e)})
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': f'An unexpected error occurred: {str(e)}'})
+
+def perform_selective_replacement(col_a_text, col_b_text, target_diff_id):
+    """
+    Perform selective replacement of a specific diff in Column B with content from Column A
+    """
+    if pd.isna(col_a_text) or pd.isna(col_b_text):
+        return col_b_text
+    
+    col_a_text, col_b_text = str(col_a_text), str(col_b_text)
+    if col_a_text == col_b_text:
+        return col_b_text
+    
+    # Use the same preprocessing as in compare_text
+    line_break_marker = " ¶ "
+    col_a_prep = col_a_text.replace('\r\n', '\n').replace('\r', '\n').replace('\n', line_break_marker)
+    col_b_prep = col_b_text.replace('\r\n', '\n').replace('\r', '\n').replace('\n', line_break_marker)
+    
+    words_a = re.split(r'(\s+)', col_a_prep)
+    words_b = re.split(r'(\s+)', col_b_prep)
+    words_a = [word for word in words_a if word]
+    words_b = [word for word in words_b if word]
+    
+    matcher = difflib.SequenceMatcher(None, words_a, words_b, autojunk=False)
+    
+    # Build the result by processing opcodes
+    result_words = []
+    diff_id_counter = 0
+    
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        words_a_segment = "".join(words_a[i1:i2])
+        words_b_segment = "".join(words_b[j1:j2])
+        
+        if tag == 'equal':
+            result_words.append(words_b_segment)
+        else:
+            # Generate the same deterministic diff_id as in compare_text
+            diff_id = f"diff-{diff_id_counter}-{tag}-{i1}-{i2}-{j1}-{j2}"
+            diff_id_counter += 1
+            
+            # If this is the target diff_id we want to replace
+            if diff_id == target_diff_id:
+                # Use content from Column A instead of Column B
+                result_words.append(words_a_segment)
+            else:
+                # Keep the original Column B content
+                result_words.append(words_b_segment)
+    
+    # Convert back to original format
+    final_text = "".join(result_words).replace(line_break_marker.strip(), "\n")
+    return final_text
 
 @app.route('/preview_diff', methods=['POST'])
 def preview_diff():

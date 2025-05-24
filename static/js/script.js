@@ -72,8 +72,20 @@ function matchSpans(addedSpans, removedSpans, isTemp = false) {
       addedSpan.addEventListener("mouseover", handleAddedOver);
       addedSpan.addEventListener("mouseout", handleAddedOut);
 
-      const handleRemovedOver = () => addedSpan.classList.add(hoverClass);
-      const handleRemovedOut = () => addedSpan.classList.remove(hoverClass);
+      const handleRemovedOver = () => {
+        addedSpan.classList.add(hoverClass);
+        // Show "Keep This" button for removed spans in Column A (only for non-temp spans)
+        if (!isTemp) {
+          showKeepThisButton(matchedRemovedSpan, diffId);
+        }
+      };
+      const handleRemovedOut = () => {
+        addedSpan.classList.remove(hoverClass);
+        // Hide "Keep This" button with delay
+        if (!isTemp) {
+          hideKeepThisButton();
+        }
+      };
       matchedRemovedSpan[`${prefix}HandleMouseOver`] = handleRemovedOver;
       matchedRemovedSpan[`${prefix}HandleMouseOut`] = handleRemovedOut;
       matchedRemovedSpan.addEventListener("mouseover", handleRemovedOver);
@@ -1629,11 +1641,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup text selection
   setupTextSelection();
 
+  // Setup Keep This button
+  setupKeepThisButton();
+
   // Setup comment functionality
   setupCommentFunctionality();
-
-  // Setup sidebar
-  setupSidebar();
 
   setupRecalculateRatioButton();
 
@@ -2589,3 +2601,150 @@ document.addEventListener("DOMContentLoaded", function () {
     delay: [50, 10],
   });
 });
+
+// Keep This button functionality
+let keepThisTimeout = null;
+
+function showKeepThisButton(removedSpan, diffId) {
+  const keepBtn = document.getElementById("keepThisButton");
+  if (!keepBtn) return;
+
+  // Clear any existing timeout
+  if (keepThisTimeout) {
+    clearTimeout(keepThisTimeout);
+    keepThisTimeout = null;
+  }
+
+  // Store the diff ID and row information
+  const row = removedSpan.closest("tr");
+  const cellContent = removedSpan.closest(".cell-content");
+  const rowIdx = cellContent ? cellContent.getAttribute("data-row") : null;
+
+  if (!rowIdx) return;
+
+  keepBtn.setAttribute("data-diff-id", diffId);
+  keepBtn.setAttribute("data-row-idx", rowIdx);
+
+  // Position the button near the hovered span
+  const rect = removedSpan.getBoundingClientRect();
+  keepBtn.style.display = "flex";
+  keepBtn.style.left = `${
+    rect.left + rect.width / 2 - keepBtn.offsetWidth / 2 + window.scrollX
+  }px`;
+  keepBtn.style.top = `${rect.bottom + 5 + window.scrollY}px`;
+}
+
+function hideKeepThisButton() {
+  // Add a delay before hiding to allow user to move to the button
+  keepThisTimeout = setTimeout(() => {
+    const keepBtn = document.getElementById("keepThisButton");
+    if (keepBtn) {
+      keepBtn.style.display = "none";
+    }
+  }, 300); // 300ms delay
+}
+
+function setupKeepThisButton() {
+  const keepBtn = document.getElementById("keepThisButton");
+  if (!keepBtn) return;
+
+  // Keep button visible when hovering over it
+  keepBtn.addEventListener("mouseenter", () => {
+    if (keepThisTimeout) {
+      clearTimeout(keepThisTimeout);
+      keepThisTimeout = null;
+    }
+  });
+
+  // Hide button when leaving it (with delay)
+  keepBtn.addEventListener("mouseleave", () => {
+    hideKeepThisButton();
+  });
+
+  keepBtn.addEventListener("click", () => {
+    const diffId = keepBtn.getAttribute("data-diff-id");
+    const rowIdx = keepBtn.getAttribute("data-row-idx");
+
+    if (!diffId || !rowIdx) return;
+
+    // Hide the button immediately
+    keepBtn.style.display = "none";
+
+    // Send request to backend
+    fetch("/keep_this", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `diff_id=${encodeURIComponent(diffId)}&row_idx=${encodeURIComponent(
+        rowIdx
+      )}`,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "success") {
+          // Find the row and update the content
+          const cellContent = document.querySelector(
+            `.cell-content[data-row="${rowIdx}"]`
+          );
+          const row = cellContent ? cellContent.closest("tr") : null;
+          if (row) {
+            // Update Column B content with new diff highlighting
+            const colBCell = row.querySelector("td:nth-child(3) .cell-content");
+            if (colBCell) {
+              colBCell.innerHTML = data.new_content;
+            }
+
+            // Update Column A content if provided
+            const colACell = row.querySelector("td:nth-child(2) .cell-content");
+            if (colACell && data.highlighted_a_html) {
+              colACell.innerHTML = data.highlighted_a_html;
+            }
+
+            // Update the textarea value for Column B
+            const colBTextarea = row.querySelector("td:nth-child(3) .editable");
+            if (colBTextarea && data.new_text) {
+              colBTextarea.value = data.new_text;
+            }
+
+            // Update cell status classes
+            const colBTd = row.querySelector("td:nth-child(3)");
+            if (colBTd && data.diff_status) {
+              colBTd.classList.remove("same", "different");
+              colBTd.classList.add(data.diff_status);
+
+              // Update approval status
+              colBTd.classList.remove(
+                "approved",
+                "yellow-approved",
+                "red-approved"
+              );
+              if (data.col_b_approved) {
+                const classMap = {
+                  green: "approved",
+                  yellow: "yellow-approved",
+                  red: "red-approved",
+                };
+                const approvalClass = classMap[data.col_b_type] || "approved";
+                colBTd.classList.add(approvalClass);
+              }
+            }
+
+            // Re-setup diff highlighting for this row
+            setupDiffHighlighting(row);
+
+            showNotification("Content replaced successfully!");
+          }
+        } else {
+          showNotification(
+            "Error: " + (data.message || "Failed to replace content"),
+            "error"
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        showNotification("Error replacing content", "error");
+      });
+  });
+}
