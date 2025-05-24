@@ -213,7 +213,7 @@ def get_cell_color_status():
     
     return color_status
 
-def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter_change_value=None, filter_change_lt_value=None, filter_change_from_value=None, filter_change_to_value=None, filter_color_a='any', filter_color_b='any', sort_order='asc', filter_id=None):
+def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter_change_value=None, filter_change_lt_value=None, filter_change_from_value=None, filter_change_to_value=None, filter_color_a='any', filter_color_b='any', sort_order='asc', filter_id=None, filter_comment=None):
     input_file = get_input_file_path() # Get path from config
     if not os.path.exists(input_file): return [], 0, 0, False
 
@@ -322,6 +322,15 @@ def get_excel_data(rows_per_page=10, page=1, filter_change_enabled=False, filter
                 df = df[df[ratio_col] <= filter_to]
              except (ValueError, TypeError) as e:
                 print(f"Invalid filter value for 'change To': {filter_change_to_value}. Error: {e}")
+
+    # Apply comment filter if provided
+    if filter_comment is not None and filter_comment.strip() != "":
+        if 'comments' in df.columns:
+            # Case-insensitive filtering
+            df = df[df['comments'].astype(str).str.lower().str.strip() == filter_comment.lower().strip()]
+        else:
+            # If comments column doesn't exist, return empty result
+            df = df.head(0)
 
     # Get color status before filtering
     approved_cells = get_cell_color_status()
@@ -433,10 +442,15 @@ def index():
     filter_color_b = request.args.get('filter_color_b', default='any').strip().lower()
     sort_order = request.args.get('sort_order', default='asc').strip().lower()
     filter_id = request.args.get('filter_id', default=None)
+    filter_comment = request.args.get('filter_comment', default=None)
     
     # If filter_id is provided but empty, set it to None
     if filter_id and filter_id.strip() == "":
         filter_id = None
+    
+    # If filter_comment is provided but empty, set it to None
+    if filter_comment and filter_comment.strip() == "":
+        filter_comment = None
 
     filter_change_gt_value = None
     filter_change_lt_value = None
@@ -490,7 +504,8 @@ def index():
         filter_color_a,
         filter_color_b,
         sort_order,
-        filter_id
+        filter_id,
+        filter_comment
     )
 
     query_params = {
@@ -513,6 +528,10 @@ def index():
     # Add ID filter to query params if it's not None
     if filter_id is not None:
         query_params['filter_id'] = filter_id
+    
+    # Add comment filter to query params if it's not None
+    if filter_comment is not None:
+        query_params['filter_comment'] = filter_comment
 
     return render_template('index.html',
                           data=data,
@@ -529,6 +548,7 @@ def index():
                           filter_color_a=filter_color_a,
                           filter_color_b=filter_color_b,
                           filter_id=filter_id,
+                          filter_comment=filter_comment,
                           sort_order=sort_order,
                           change_col_exists=change_col_exists,
                           query_params=query_params,
@@ -1913,5 +1933,51 @@ def regenerate_with_custom_prompt():
         import traceback
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': f'An unexpected error occurred: {str(e)}'})
+
+def get_all_comments():
+    """Get all unique comments from the Excel file for filtering"""
+    input_file = get_input_file_path()
+    if not os.path.exists(input_file):
+        return []
+    
+    try:
+        sheet_name = get_sheet_name()
+        df = pd.read_excel(input_file, sheet_name=sheet_name)
+        
+        if 'comments' not in df.columns:
+            return []
+        
+        # Get all non-null comments
+        comments = df['comments'].dropna().astype(str)
+        
+        # Remove empty strings and whitespace-only strings
+        comments = comments[comments.str.strip() != '']
+        
+        # Get unique comments (case-insensitive by converting to lowercase for comparison)
+        unique_comments = []
+        seen_lower = set()
+        
+        for comment in comments:
+            comment_lower = comment.lower().strip()
+            if comment_lower not in seen_lower:
+                seen_lower.add(comment_lower)
+                unique_comments.append(comment.strip())
+        
+        # Sort alphabetically (case-insensitive)
+        unique_comments.sort(key=str.lower)
+        
+        return unique_comments
+    except Exception as e:
+        print(f"Error getting comments: {e}")
+        return []
+
+@app.route('/get_all_comments', methods=['GET'])
+def get_all_comments_route():
+    """API endpoint to get all unique comments for the filter dropdown"""
+    try:
+        comments = get_all_comments()
+        return jsonify({'status': 'success', 'comments': comments})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__': app.run(debug=True,port=8000)

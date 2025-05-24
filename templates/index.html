@@ -35,6 +35,22 @@
             {% endif %}
         </div>
 
+        <!-- Comment Filter Section -->
+        <div class="comment-filter-section" style="margin-right: 10px;">
+            <form action="/" method="get" id="comment-filter-form" style="display: flex; align-items: center; gap: 10px;">
+                <!-- Preserve all current query parameters except 'filter_comment' and 'page' -->
+                {% for key, value in request.args.items() if key not in ['filter_comment', 'page'] %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endfor %}
+
+                <select name="filter_comment" id="main-filter-comment-select" class="filter-select" onchange="this.form.submit()" style="max-width: 160px; overflow: hidden;">
+                    <option value="">All Comments</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+                
+            </form>
+        </div>
+
         <div class="regenerate-controls">
             <select id="regenerate-color-select" class="regenerate-color-select">
                 <option value="any">Any Color</option>
@@ -454,6 +470,38 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
     <script>
+        // Function to load comments for the filter dropdown
+        function loadComments() {
+            fetch('/get_all_comments')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const select = document.getElementById('main-filter-comment-select');
+                        const currentValue = "{{ filter_comment or '' }}";
+                        
+                        // Clear existing options except the first one
+                        while (select.children.length > 1) {
+                            select.removeChild(select.lastChild);
+                        }
+                        
+                        // Add comment options
+                        data.comments.forEach(comment => {
+                            const option = document.createElement('option');
+                           
+                            option.value = comment;
+                            option.textContent = comment;
+                            if (comment === currentValue) {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading comments:', error);
+                });
+        }
+
         // Function to clear all filters
         function clearFilters() {            
             const form = document.getElementById('combined-filter-form');
@@ -476,6 +524,7 @@
                 const idFilterInput = form.querySelector('input[name="filter_id"]');
                 if (idFilterInput) idFilterInput.value = '';
                 
+      
                 // Reset color filters to 'any'
                 const colorASelect = form.querySelector('select[name="filter_color_a"]');
                 if (colorASelect) colorASelect.value = 'any';
@@ -486,6 +535,11 @@
                 form.submit();
             }
         }
+
+        // Load comments when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadComments();
+        });
     </script>
 </body>
 </html>
