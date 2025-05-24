@@ -1647,6 +1647,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup comment functionality
   setupCommentFunctionality();
 
+  // Setup sidebar functionality
+  setupSidebar();
+
   setupRecalculateRatioButton();
 
   // Setup regenerate all button
