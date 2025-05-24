@@ -962,11 +962,17 @@ function regenerateWithCustomPrompt(button) {
   const promptRowIdx = document.getElementById("promptRowIdx");
   const promptPage = document.getElementById("promptPage");
   const promptRowsPerPage = document.getElementById("promptRowsPerPage");
+  const promptIsGlobal = document.getElementById("promptIsGlobal");
+  const promptRowIds = document.getElementById("promptRowIds");
 
-  // Set hidden fields
+  // Set hidden fields for single row regeneration
   promptRowIdx.value = rowIdx;
   promptPage.value = page;
   promptRowsPerPage.value = rowsPerPage;
+
+  // Clear global flags
+  if (promptIsGlobal) promptIsGlobal.value = "false";
+  if (promptRowIds) promptRowIds.value = "";
 
   // Load prompts and select the last active one
   initPromptGallery();
@@ -1319,11 +1325,13 @@ function executeCustomPrompt() {
 
   const customPromptText = document.getElementById("customPromptText");
   const promptText = customPromptText.value;
-  const rowIdx = document.getElementById("promptRowIdx").value;
-  const page = document.getElementById("promptPage").value;
-  const rowsPerPage = document.getElementById("promptRowsPerPage").value;
   const providerSelect = document.getElementById("promptProviderSelect");
   const selectedProvider = providerSelect ? providerSelect.value : "google";
+
+  // Check if this is a global regeneration
+  const promptIsGlobal = document.getElementById("promptIsGlobal");
+  const promptRowIds = document.getElementById("promptRowIds");
+  const isGlobal = promptIsGlobal && promptIsGlobal.value === "true";
 
   // Save the selected provider for future use
   localStorage.setItem("lastUsedProvider", selectedProvider);
@@ -1336,6 +1344,20 @@ function executeCustomPrompt() {
   // Close the modal and re-enable body scroll
   document.getElementById("customPromptModal").style.display = "none";
   enableBodyScroll();
+
+  if (isGlobal) {
+    // Handle global regeneration
+    executeGlobalCustomPrompt(promptText, selectedProvider, promptRowIds.value);
+  } else {
+    // Handle single row regeneration (existing logic)
+    executeSingleCustomPrompt(promptText, selectedProvider);
+  }
+}
+
+function executeSingleCustomPrompt(promptText, selectedProvider) {
+  const rowIdx = document.getElementById("promptRowIdx").value;
+  const page = document.getElementById("promptPage").value;
+  const rowsPerPage = document.getElementById("promptRowsPerPage").value;
 
   // Find the custom prompt button for this row to show loading state
   const buttons = document.querySelectorAll(".custom-prompt-btn");
@@ -1426,6 +1448,157 @@ function executeCustomPrompt() {
     .finally(() => {
       targetButton.innerHTML = originalContent;
       targetButton.disabled = false;
+    });
+}
+
+function executeGlobalCustomPrompt(promptText, selectedProvider, rowIdsJson) {
+  let rowIds;
+  try {
+    rowIds = JSON.parse(rowIdsJson);
+  } catch (error) {
+    showNotification("Error parsing row IDs", "error");
+    return;
+  }
+
+  if (!rowIds || rowIds.length === 0) {
+    showNotification("No rows to regenerate", "error");
+    return;
+  }
+
+  // Find all regenerate buttons for the rows
+  const regenerateButtons = Array.from(
+    document.querySelectorAll(".generate-btn")
+  ).filter((button) => {
+    const rowIdx = parseInt(button.getAttribute("data-row"));
+    return rowIds.includes(rowIdx);
+  });
+
+  const regenerateAllCustomBtn = document.getElementById(
+    "regenerate-all-custom-btn"
+  );
+  const originalContent = regenerateAllCustomBtn.innerHTML;
+
+  regenerateAllCustomBtn.innerHTML = `<span class="loading-spinner"></span> Processing...`;
+  regenerateAllCustomBtn.disabled = true;
+
+  showNotification(
+    `Starting custom prompt regeneration of ${rowIds.length} cells...`,
+    "info"
+  );
+
+  // Set all buttons to loading state
+  regenerateButtons.forEach((button) => {
+    button.innerHTML = '<span class="loading-spinner"></span>';
+    button.disabled = true;
+  });
+
+  // Call backend endpoint to process all rows in parallel
+  fetch("/regenerate_multiple_with_custom_prompt", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      row_ids: rowIds,
+      prompt: promptText,
+      provider: selectedProvider,
+    }),
+  })
+    .then((response) => {
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      if (data.status === "success") {
+        showNotification(data.message, "success");
+
+        // Process each result and update UI
+        data.results.forEach((result) => {
+          if (result.status === "success") {
+            // Find the button for this row
+            const button = regenerateButtons.find(
+              (btn) => parseInt(btn.getAttribute("data-row")) === result.row_idx
+            );
+
+            if (button) {
+              const container = button.closest(".cell-container");
+              const contentDiv = container.querySelector(".cell-content");
+              const textArea = container.querySelector(".editable");
+              const row = container.closest("tr");
+              const colAContent = row.querySelector(
+                "td:nth-child(2) .cell-content"
+              );
+              const cell = contentDiv.closest("td");
+
+              // 1. Update Col B content
+              contentDiv.innerHTML = result.highlighted_html;
+              if (textArea) textArea.value = result.new_text;
+
+              // 2. Update Col A content (if provided)
+              if (result.highlighted_a_html && colAContent) {
+                colAContent.innerHTML = result.highlighted_a_html;
+              }
+
+              // 3. Update diff status
+              cell.classList.remove("same", "different");
+              cell.classList.add(result.diff_status);
+
+              // 4. Update color approval status
+              cell.classList.remove(
+                "approved",
+                "yellow-approved",
+                "red-approved"
+              );
+
+              if (result.col_b_approved) {
+                const classMap = {
+                  green: "approved",
+                  yellow: "yellow-approved",
+                  red: "red-approved",
+                };
+                const approvalClass = classMap[result.col_b_type] || "approved";
+                cell.classList.add(approvalClass);
+              }
+
+              // 5. Re-setup highlighting
+              setupDiffHighlighting(row);
+            }
+          } else {
+            console.error(
+              `Error regenerating row ${result.row_idx}:`,
+              result.message
+            );
+            showNotification(
+              `Error regenerating row ${result.row_idx}: ${result.message}`,
+              "error"
+            );
+          }
+        });
+      } else {
+        showNotification("Error: " + data.message, "error");
+      }
+    })
+    .catch((error) => {
+      console.error("Error regenerating cells with custom prompt:", error);
+      showNotification("Error regenerating cells: " + error.message, "error");
+    })
+    .finally(() => {
+      // Restore all buttons to original state
+      regenerateButtons.forEach((button) => {
+        button.innerHTML = '<i class="material-icons">offline_bolt</i>';
+        button.disabled = false;
+      });
+
+      // Restore regenerate all custom button
+      regenerateAllCustomBtn.innerHTML = originalContent;
+      regenerateAllCustomBtn.disabled = false;
+
+      // Clear global flags
+      const promptIsGlobal = document.getElementById("promptIsGlobal");
+      const promptRowIds = document.getElementById("promptRowIds");
+      if (promptIsGlobal) promptIsGlobal.value = "false";
+      if (promptRowIds) promptRowIds.value = "";
     });
 }
 
@@ -1623,6 +1796,92 @@ function regenerateAllCells() {
     });
 }
 
+// Function to regenerate all cells with custom prompt
+function regenerateAllCellsWithCustomPrompt() {
+  // Get the selected color from the dropdown
+  const colorSelect = document.getElementById("regenerate-color-select");
+  const selectedColor = colorSelect ? colorSelect.value : "any";
+
+  // Find all regenerate buttons
+  let regenerateButtons = Array.from(
+    document.querySelectorAll(".generate-btn")
+  );
+
+  // Filter buttons based on the selected color
+  if (selectedColor !== "any") {
+    regenerateButtons = regenerateButtons.filter((button) => {
+      const cell = button.closest("td");
+
+      if (selectedColor === "none") {
+        // Select cells that don't have any color approval
+        return (
+          !cell.classList.contains("approved") &&
+          !cell.classList.contains("yellow-approved") &&
+          !cell.classList.contains("red-approved")
+        );
+      } else if (selectedColor === "green") {
+        // Select cells with green approval
+        return cell.classList.contains("approved");
+      } else if (selectedColor === "yellow") {
+        // Select cells with yellow approval
+        return cell.classList.contains("yellow-approved");
+      } else if (selectedColor === "red") {
+        // Select cells with red approval
+        return cell.classList.contains("red-approved");
+      }
+
+      return true;
+    });
+  }
+
+  if (regenerateButtons.length === 0) {
+    showNotification(
+      `No cells to regenerate with filter: ${selectedColor}`,
+      "info"
+    );
+    return;
+  }
+
+  // Get the modal elements
+  const customPromptModal = document.getElementById("customPromptModal");
+  const promptRowIds = document.getElementById("promptRowIds");
+  const promptIsGlobal = document.getElementById("promptIsGlobal");
+
+  // Set hidden fields for global regeneration
+  const rowIds = regenerateButtons.map((button) =>
+    parseInt(button.getAttribute("data-row"))
+  );
+
+  // Create hidden input for row IDs if it doesn't exist
+  if (!promptRowIds) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.id = "promptRowIds";
+    input.value = JSON.stringify(rowIds);
+    customPromptModal.appendChild(input);
+  } else {
+    promptRowIds.value = JSON.stringify(rowIds);
+  }
+
+  // Create hidden input for global flag if it doesn't exist
+  if (!promptIsGlobal) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.id = "promptIsGlobal";
+    input.value = "true";
+    customPromptModal.appendChild(input);
+  } else {
+    promptIsGlobal.value = "true";
+  }
+
+  // Load prompts and select the last active one
+  initPromptGallery();
+
+  // Display the modal and disable body scroll
+  customPromptModal.style.display = "flex";
+  disableBodyScroll();
+}
+
 // Initialize everything when DOM is loaded - optimized with event delegation
 document.addEventListener("DOMContentLoaded", () => {
   // Cache DOM elements
@@ -1656,6 +1915,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const regenerateAllBtn = document.getElementById("regenerate-all-btn");
   if (regenerateAllBtn) {
     regenerateAllBtn.addEventListener("click", regenerateAllCells);
+  }
+
+  // Setup regenerate all with custom prompt button
+  const regenerateAllCustomBtn = document.getElementById(
+    "regenerate-all-custom-btn"
+  );
+  if (regenerateAllCustomBtn) {
+    regenerateAllCustomBtn.addEventListener(
+      "click",
+      regenerateAllCellsWithCustomPrompt
+    );
   }
 
   // Setup custom prompt modal
