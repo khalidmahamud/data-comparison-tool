@@ -564,6 +564,7 @@ function setupFormHandlers() {
 // Text selection functionality - optimized
 function setupTextSelection() {
   let selectedText = "";
+  let selectedRowIdx = null;
   const selBtn = document.getElementById("selectionButton");
   dom.selectionButton = selBtn;
 
@@ -574,6 +575,7 @@ function setupTextSelection() {
 
       // Check if selection is inside a cell-content element
       let isInsideCellContent = false;
+      let cellContentElement = null;
 
       if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
@@ -585,19 +587,25 @@ function setupTextSelection() {
           container.classList.contains("cell-content")
         ) {
           isInsideCellContent = true;
+          cellContentElement = container;
         } else if (
           container.parentElement &&
           container.parentElement.closest(".cell-content")
         ) {
           isInsideCellContent = true;
+          cellContentElement = container.parentElement.closest(".cell-content");
         }
       }
 
       if (
         selectedText &&
         !document.querySelector(".editable:focus") &&
-        isInsideCellContent
+        isInsideCellContent &&
+        cellContentElement
       ) {
+        // Get the row index from the cell-content element
+        selectedRowIdx = cellContentElement.getAttribute("data-row");
+
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
@@ -619,14 +627,16 @@ function setupTextSelection() {
         }
       } else if (!e.target.closest("#selectionButton")) {
         selBtn.style.display = "none";
+        selectedRowIdx = null;
       }
     }, 10);
   });
 
   selBtn.addEventListener("click", () => {
-    if (selectedText) {
+    if (selectedText && selectedRowIdx !== null) {
       const formData = new FormData();
       formData.append("selected_text", selectedText);
+      formData.append("row_idx", selectedRowIdx);
 
       showNotification("Saving selection...", "info");
 
@@ -636,10 +646,13 @@ function setupTextSelection() {
       })
         .then((response) => response.json())
         .then((data) => {
-          showNotification(
-            data.status === "success" ? "Saved!" : "Error: " + data.message,
-            data.status === "success" ? "success" : "error"
-          );
+          if (data.status === "success") {
+            showNotification("Saved!", "success");
+          } else if (data.status === "warning") {
+            showNotification(data.message, "info");
+          } else {
+            showNotification("Error: " + data.message, "error");
+          }
         })
         .catch((error) => {
           console.error("Error:", error);
@@ -647,6 +660,7 @@ function setupTextSelection() {
         });
 
       selBtn.style.display = "none";
+      selectedRowIdx = null;
     }
   });
 

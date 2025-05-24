@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import pandas as pd, math, os, difflib, re
-from openpyxl import load_workbook
+from openpyxl import load_workbook, Workbook
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from urllib.parse import urlencode
@@ -657,36 +657,112 @@ def reset_cell():
 @app.route('/save_selection', methods=['POST'])
 def save_selection():
     selected_text = request.form.get('selected_text', '')
+    row_idx = request.form.get('row_idx', type=int)
     
-    input_file = get_input_file_path() # Get path from config
-    if not selected_text.strip(): return jsonify({'status': 'error', 'message': 'No text selected'})
-    if not os.path.exists(input_file): return jsonify({'status': 'error', 'message': 'Excel file not found'})
+    if not selected_text.strip():
+        return jsonify({'status': 'error', 'message': 'No text selected'})
+    
+    if row_idx is None:
+        return jsonify({'status': 'error', 'message': 'Row index not provided'})
+    
+    input_file = get_input_file_path()
+    if not os.path.exists(input_file):
+        return jsonify({'status': 'error', 'message': 'Excel file not found'})
     
     try:
+        # Read the current row data to get hadith_id
         wb = load_workbook(input_file)
         sheet_name = get_sheet_name()
         
         if sheet_name not in wb.sheetnames:
-            ws_data = wb.create_sheet(sheet_name)
-            primary_text_col = get_column_name('primary_text')
-            secondary_text_col = get_column_name('secondary_text')
-            ws_data['A1'], ws_data['B1'] = primary_text_col, secondary_text_col
+            return jsonify({'status': 'error', 'message': f'Sheet {sheet_name} not found'})
         
-        if 'words' not in wb.sheetnames:
-            ws = wb.create_sheet('words')
-            ws['A1'] = 'word_list'
+        ws = wb[sheet_name]
+        
+        # Get column name from config for hadith_id
+        number_col = get_column_name('number')  # hadith_id
+        
+        # Find column index for hadith_id
+        header = next(ws.rows)
+        hadith_id_col_idx = None
+        for idx, cell in enumerate(header):
+            if cell.value == number_col:
+                hadith_id_col_idx = idx
+                break
+        
+        # Get the hadith_id from the specific row (row_idx + 2 because of 0-based index + header)
+        excel_row = row_idx + 2
+        row_data = list(ws.rows)[excel_row - 1]  # -1 because rows are 1-indexed
+        
+        # Extract hadith_id
+        hadith_id = ""
+        if hadith_id_col_idx is not None:
+            hadith_id = str(row_data[hadith_id_col_idx].value or "")
+        
+        # Create new Excel file for selections
+        selections_file = "selections.xlsx"
+        
+        # Check if selections file exists, if not create it
+        if os.path.exists(selections_file):
+            selections_wb = load_workbook(selections_file)
+            if 'selections' in selections_wb.sheetnames:
+                selections_ws = selections_wb['selections']
+            else:
+                selections_ws = selections_wb.create_sheet('selections')
+                # Add headers
+                selections_ws['A1'] = 'hadith_id'
+                selections_ws['B1'] = 'selected_text'
         else:
-            ws = wb['words']
-            if ws['A1'].value != 'word_list': ws['A1'] = 'word_list'
+            selections_wb = Workbook()
+            selections_ws = selections_wb.active
+            selections_ws.title = 'selections'
+            # Add headers
+            selections_ws['A1'] = 'hadith_id'
+            selections_ws['B1'] = 'selected_text'
         
-        row = 2
-        while ws[f'A{row}'].value: row += 1
+        # Check for duplicates before adding
+        duplicate_found = False
+        for row_num in range(2, selections_ws.max_row + 1):
+            existing_hadith_id = str(selections_ws[f'A{row_num}'].value or "")
+            existing_text = str(selections_ws[f'B{row_num}'].value or "")
             
-        ws[f'A{row}'] = selected_text
-        wb.save(input_file)
+            if existing_hadith_id == hadith_id and existing_text == selected_text:
+                duplicate_found = True
+                break
         
-        return jsonify({'status': 'success', 'message': 'Text saved successfully', 'text': selected_text, 'row': row})
+        if duplicate_found:
+            return jsonify({
+                'status': 'warning', 
+                'message': 'This selection already exists and was not added again',
+                'text': selected_text,
+                'hadith_id': hadith_id
+            })
+        
+        # Find the next empty row
+        row = 2
+        while selections_ws[f'A{row}'].value:
+            row += 1
+        
+        # Add the new selection
+        selections_ws[f'A{row}'] = hadith_id
+        selections_ws[f'B{row}'] = selected_text
+        
+        # Save the selections file
+        selections_wb.save(selections_file)
+        
+        return jsonify({
+            'status': 'success', 
+            'message': 'Selection saved to new Excel file', 
+            'text': selected_text,
+            'hadith_id': hadith_id,
+            'row': row,
+            'file': selections_file
+        })
+        
     except Exception as e:
+        import traceback
+        print(f"Error saving selection: {e}")
+        print(traceback.format_exc())
         return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/preview_diff', methods=['POST'])
