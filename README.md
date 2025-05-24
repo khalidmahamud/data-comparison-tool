@@ -96,6 +96,17 @@ api_settings:
     model: "grok-1"
     max_tokens: 4096
 
+  # OpenAI models
+  openai_gpt4o:
+    api_key: "YOUR_OPENAI_API_KEY"
+    model: "gpt-4o"
+    max_tokens: 4096
+
+  openai_gpt4o_mini:
+    api_key: "YOUR_OPENAI_API_KEY"
+    model: "gpt-4o-mini"
+    max_tokens: 4096
+
 file_settings:
   input_file: "input.xlsx"
   output_file: "output.xlsx"
@@ -152,6 +163,18 @@ The application supports multiple AI providers, each with their own configuratio
   - **model**: The specific Grok model to use
   - **max_tokens**: Maximum token limit for generated responses
 
+- **openai_gpt4o**: Configuration for OpenAI GPT-4o models
+
+  - **api_key**: Your OpenAI API key
+  - **model**: The specific GPT-4o model to use
+  - **max_tokens**: Maximum token limit for generated responses
+
+- **openai_gpt4o_mini**: Configuration for OpenAI GPT-4o mini models
+
+  - **api_key**: Your OpenAI API key
+  - **model**: The specific GPT-4o mini model to use
+  - **max_tokens**: Maximum token limit for generated responses
+
 You can configure multiple entries for each provider for load balancing.
 
 #### File Settings
@@ -204,6 +227,24 @@ response = ask(
 # Access both the text and raw response if needed
 print(response.text)
 raw_provider_response = response.raw_response  # Access the original provider-specific response
+
+# Using OpenAI with specific model and parameters
+response = ask(
+    "Your prompt text here",
+    provider="openai",
+    model="gpt-4o",
+    config={
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "frequency_penalty": 0.1,
+        "presence_penalty": 0.1
+    }
+)
+print(f"OpenAI says: {response.text}")
+
+# Using OpenAI GPT-4o mini (more cost-effective option)
+response = ask("Your prompt text here", provider="openai", model="gpt-4o-mini")
+print(response.text)
 ```
 
 2. **Environment Variables**:
@@ -215,6 +256,7 @@ export GOOGLE_API_KEY=your_google_api_key
 export CLAUDE_API_KEY=your_anthropic_api_key
 export DEEPSEEK_API_KEY=your_deepseek_api_key
 export GROK_API_KEY=your_grok_api_key
+export OPENAI_API_KEY=your_openai_api_key
 ```
 
 3. **Model Selection Priority**:
