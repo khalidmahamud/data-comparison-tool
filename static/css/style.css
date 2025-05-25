@@ -1271,6 +1271,7 @@ h3 {
 .filter-item select.filter-select {
   background-color: var(--background-color);
   color: var(--text-color);
+  width: 100%;
 }
 
 [data-theme="dark"] .filter-item select.filter-select {
