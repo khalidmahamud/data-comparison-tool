@@ -203,5 +203,4 @@ def ask(
     generation_config = {"max_output_tokens": max_tokens}
     generation_config.update(config)
     
-    # Generate content
     return ai_provider.generate_content(query, generation_config)

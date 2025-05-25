@@ -17,7 +17,7 @@ class ProcessingConfig:
 class ApiConfig:
     api_key: str
     model: str
-    max_tokens: int
+    max_tokens: Optional[int] = None
 
 
 @dataclass
