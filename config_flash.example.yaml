@@ -6,45 +6,33 @@ processing:
   start_row: 0
 
 api_settings:
-  # Google AI models
-  google_gemini:
-    api_key: "YOUR_GOOGLE_API_KEY"
+  google:
+    api_key: "YOUR_GROK_API_KEY"
     model: "gemini-2.0-flash"
     max_tokens: 8192
 
   # Anthropic Claude models
-  claude_haiku:
+  claude:
     api_key: "YOUR_ANTHROPIC_API_KEY"
     model: "claude-3-haiku-20240307"
     max_tokens: 4096
 
   # DeepSeek models
-  deepseek_chat:
-    api_key: "YOUR_DEEPSEEK_API_KEY"
+  deepseek:
+    api_key: "YOUR_GROK_API_KEY"
     model: "deepseek-chat"
     max_tokens: 4096
 
   # Grok models
-  grok_1:
+  grok:
     api_key: "YOUR_GROK_API_KEY"
     model: "grok-1"
     max_tokens: 4096
 
-  # OpenAI models
-  openai_gpt4o:
-    api_key: "YOUR_OPENAI_API_KEY"
-    model: "gpt-4o"
-    max_tokens: 4096
-
-  openai_gpt4o_mini:
-    api_key: "YOUR_OPENAI_API_KEY"
-    model: "gpt-4o-mini"
-    max_tokens: 4096
-
-  openai_gpt35_turbo:
-    api_key: "YOUR_OPENAI_API_KEY"
-    model: "gpt-3.5-turbo"
-    max_tokens: 4096
+  openai:
+    api_key: "YOUR_GROK_API_KEY"
+    model: "gpt-4.1-2025-04-14"
+    max_tokens: 30000
 
 file_settings:
   input_file: "spreadsheet.xlsx"
@@ -60,6 +48,6 @@ excel_settings:
   columns:
     primary_text: "bn"
     arabic_text: "ar"
-    secondary_text: "ai"
+    secondary_text: "step_1_output"
     ratio: "ratio"
     number: "hadith_id"

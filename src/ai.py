@@ -4,7 +4,7 @@ from src.config import config
 from openai import OpenAI  # Import OpenAI SDK for Deepseek and Grok
 
 # Type for supported AI providers
-ProviderType = Literal["google", "claude", "deepseek", "grok"]
+ProviderType = Literal["google", "claude", "deepseek", "grok", "openai"]
 
 # Default provider and model mappings
 DEFAULT_PROVIDER = "google"
@@ -12,7 +12,8 @@ PROVIDER_DEFAULT_MODELS = {
     "google": "gemini-2.0-flash",
     "claude": "claude-3-haiku-20240307",
     "deepseek": "deepseek-chat",
-    "grok": "grok-3"  # Note: Example uses "grok-3-beta", you may need to adjust this
+    "grok": "grok-3",  # Note: Example uses "grok-3-beta", you may need to adjust this
+    "openai": "gpt-4"
 }
 
 class AIResponse:
@@ -108,18 +109,35 @@ class GrokAI(AIProvider):
         response_text = response.choices[0].message.content
         return AIResponse(text=response_text, raw_response=response)
 
+class OpenAIProvider(AIProvider):
+    """OpenAI ChatGPT implementation"""
+    def __init__(self, api_key: str, model: str):
+        super().__init__(api_key, model)
+        # Use standard OpenAI client
+        self.client = OpenAI(api_key=api_key)
+        
+    def generate_content(self, query: str, generation_config: Dict[str, Any]) -> AIResponse:
+        # OpenAI SDK expects "max_tokens", adjust from "max_output_tokens" if needed
+        max_tokens = generation_config.get("max_output_tokens", 1024)
+        messages = [{"role": "user", "content": query}]
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=max_tokens,
+        )
+        response_text = response.choices[0].message.content
+        return AIResponse(text=response_text, raw_response=response)
+
 # Provider factory
 def get_provider(provider_name: ProviderType, model_name: str = None) -> AIProvider:
     """Get the appropriate AI provider instance based on provider name and model"""
     provider_config = None
     config_model = None
     
-    # Try to get config from config file first
-    for key, value in config.api_settings.items():
-        if key.lower().startswith(provider_name.lower()):
-            provider_config = value
-            config_model = value.model
-            break
+    # Try to get config from config file first - use exact matching
+    if provider_name in config.api_settings:
+        provider_config = config.api_settings[provider_name]
+        config_model = provider_config.model
     
     # If not found in config, check environment variables
     if not provider_config:
@@ -145,6 +163,8 @@ def get_provider(provider_name: ProviderType, model_name: str = None) -> AIProvi
         return DeepseekAI(provider_config.api_key, final_model)
     elif provider_name == "grok":
         return GrokAI(provider_config.api_key, final_model)
+    elif provider_name == "openai":
+        return OpenAIProvider(provider_config.api_key, final_model)
     else:
         raise ValueError(f"Unsupported AI provider: {provider_name}")
 
@@ -159,7 +179,7 @@ def ask(
     
     Args:
         query (str): The prompt or query to send to the AI
-        provider (str): AI provider ("google", "claude", "deepseek", "grok")
+        provider (str): AI provider ("google", "claude", "deepseek", "grok", "openai")
         model (str, optional): Model name for the specified provider
         config (Dict[str, Any], optional): Generation configuration parameters
         
@@ -176,10 +196,8 @@ def ask(
     # Get max tokens from config if available
     max_tokens = 4096  # Default fallback
     from src.config import config as app_config
-    for key, value in app_config.api_settings.items():
-        if key.lower().startswith(provider.lower()):
-            max_tokens = value.max_tokens
-            break
+    if provider in app_config.api_settings:
+        max_tokens = app_config.api_settings[provider].max_tokens
     
     # Merge max tokens with provided config
     generation_config = {"max_output_tokens": max_tokens}
