@@ -812,10 +812,7 @@ select:focus {
 .slider {
   position: absolute;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-color: #ccc;
   transition: 0.4s;
   border-radius: 30px;
@@ -825,10 +822,8 @@ select:focus {
 .slider:before {
   position: absolute;
   content: "";
-  height: 22px;
-  width: 22px;
-  left: 4px;
-  bottom: 4px;
+  inset-block: 1px;
+  aspect-ratio: 1;
   background-color: white;
   transition: 0.4s;
   border-radius: 50%;
@@ -838,9 +833,11 @@ select:focus {
 input:checked + .slider {
   background-color: var(--primary-color);
 }
+
 input:focus + .slider {
   box-shadow: 0 0 1px var(--primary-color);
 }
+
 input:checked + .slider:before {
   transform: translateX(30px);
 }
@@ -1695,6 +1692,9 @@ input:checked + .slider:before {
   line-height: 1.5;
   resize: vertical;
   padding: 12px;
+  color: var(--text-color);
+  background-color: var(--card-bg);
+  height: 100%;
 }
 
 [data-theme="dark"] .prompt-description {
@@ -1723,11 +1723,13 @@ html {
 }
 
 .prompt-tabs {
+  padding: 1rem;
   display: flex;
   overflow-x: auto;
   flex-grow: 1;
   scrollbar-width: thin;
-  padding-bottom: 2px;
+  gap: 0.5rem;
+  flex-direction: column;
 }
 
 .prompt-tabs::-webkit-scrollbar {
@@ -1780,10 +1782,9 @@ html {
 
 .prompt-tab.active {
   background-color: var(--card-bg);
-  outline: 2px solid var(--primary-color);
+  outline: 1px solid var(--primary-color);
   color: var(--primary-color);
   font-weight: 500;
-  border-top-width: 2px;
   z-index: 1;
 }
 
@@ -1845,6 +1846,7 @@ html {
   display: flex;
   flex-direction: column;
   padding-top: 4px;
+  height: 100%;
 }
 
 .comment-modal-content.custom-prompt-content {
