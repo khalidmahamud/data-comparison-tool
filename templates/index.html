@@ -2518,7 +2518,7 @@
 
         async function saveServiceAccount() {
             const json = document.getElementById('service-account-json').value.trim();
-            if (\!json) return alert('Please paste the service account JSON');
+            if (!json) return alert('Please paste the service account JSON');
 
             try {
                 const response = await fetch('/api/settings/google-service-account', {
@@ -2529,7 +2529,7 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    alert('Service account saved successfully\!');
+                    alert('Service account saved successfully!');
                     document.getElementById('service-account-json').value = '';
                     loadServiceAccountStatus();
                 } else {
@@ -2548,7 +2548,7 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    alert('Connection successful\! Your service account is working.');
+                    alert('Connection successful! Your service account is working.');
                 } else {
                     alert('Connection failed: ' + data.message);
                 }
@@ -2563,7 +2563,7 @@
         }
 
         async function deleteServiceAccount() {
-            if (\!confirm('Are you sure you want to remove the service account?')) return;
+            if (!confirm('Are you sure you want to remove the service account?')) return;
 
             try {
                 const response = await fetch('/api/settings/google-service-account', {
