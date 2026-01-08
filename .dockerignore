@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+.eggs/
+*.egg-info/
+.pytest_cache/
+
+# Environment and secrets
+.env
+*.env
+config_flash.yaml
+service_account.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data files (will be mounted as volumes)
+uploads/
+data/
+*.xlsx
+*.db
+
+# Logs
+*.log
+output.txt
+
+# Merge directory
+/merge
+
+# Documentation
+*.md
+!prompts/*.md
+
+# Tests
+tests/
+*_test.py
+test_*.py
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker/

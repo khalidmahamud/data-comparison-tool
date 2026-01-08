@@ -50,4 +50,5 @@ excel_settings:
     arabic_text: "ar"
     secondary_text: "step_1_output"
     ratio: "ratio"
-    number: "hadith_id"
+    # number: "hadith_id"
+    number: "id"

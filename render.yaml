@@ -1,3 +1,9 @@
+databases:
+  - name: ihadis-db
+    plan: free
+    databaseName: ihadis
+    user: ihadis_user
+
 services:
   - type: web
     name: ihadis-comparison-tool
@@ -15,7 +21,9 @@ services:
       - key: API_KEY_ENCRYPTION_SECRET
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///data/app.db
+        fromDatabase:
+          name: ihadis-db
+          property: connectionString
       - key: UPLOAD_FOLDER
         value: uploads
       - key: MAX_UPLOAD_SIZE_MB

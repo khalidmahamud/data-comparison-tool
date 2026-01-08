@@ -1,8 +1,33 @@
-Flask==3.0.0
-pandas==2.1.4
-openpyxl==3.1.2
-google-generativeai==0.3.2
-anthropic==0.8.1
-openai==1.51.2
-PyYAML==6.0.1
-pathlib2==2.3.7 
+# Web Framework
+Flask>=2.3.0
+
+# Data Processing
+pandas>=2.0.0
+openpyxl>=3.1.0
+
+# AI Providers
+google-generativeai>=0.3.0
+anthropic>=0.18.0
+openai>=1.12.0
+
+# Configuration
+PyYAML>=6.0
+python-dotenv>=1.0.0
+
+# Database
+SQLAlchemy>=2.0.0
+Flask-SQLAlchemy>=3.1.0
+psycopg2-binary>=2.9.0
+
+# Security - API key encryption
+cryptography>=41.0.0
+
+# Google Sheets Integration
+gspread>=5.12.0
+google-auth>=2.22.0
+
+# Production Server
+gunicorn>=21.0.0
+
+# Utilities
+pathlib2>=2.3.0

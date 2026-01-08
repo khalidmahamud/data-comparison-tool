@@ -1,10 +1,33 @@
 __pycache__/
 *.pyc
 *.pyo
-*.env
 venv/
-/merge
+.venv/
+
+# Environment and secrets
 .env
-*.xlsx
-output.txt
+*.env
 config_flash.yaml
+service_account.json
+
+# Database
+*.db
+data/
+
+# Uploads
+uploads/
+/merge
+
+# Excel files (data)
+*.xlsx
+
+# Logs
+output.txt
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Windows reserved names
+nul

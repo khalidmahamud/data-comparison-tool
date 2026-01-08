@@ -25,50 +25,171 @@
         </button>
 
         <h1>Hadith Text Comparison Tool</h1>
-        
-        <!-- Regenerate All Button -->
-        <div class="controls">
-        <div class="pagination-info">
-            {% if total_rows > 0 %}
-                Showing {{ (current_page - 1) * rows_per_page + 1 }} to 
-                {{ [current_page * rows_per_page, total_rows] | min }} of {{ total_rows }} rows
-            {% endif %}
+
+        <!-- Step Indicator -->
+        <div class="setup-stepper" id="setup-stepper">
+            <div class="step {% if not has_files %}active{% elif file_selected and not data %}completed{% else %}completed{% endif %}" data-step="1">
+                <span class="step-number">{% if has_files %}<i class="material-icons" style="font-size:16px">check</i>{% else %}1{% endif %}</span>
+                <span class="step-label">Upload</span>
+            </div>
+            <div class="step-connector {% if file_selected %}active{% endif %}"></div>
+            <div class="step {% if file_selected and not data %}active{% elif file_selected and data %}completed{% endif %}" data-step="2">
+                <span class="step-number">{% if file_selected and data %}<i class="material-icons" style="font-size:16px">check</i>{% else %}2{% endif %}</span>
+                <span class="step-label">Configure</span>
+            </div>
+            <div class="step-connector {% if file_selected and data %}active{% endif %}"></div>
+            <div class="step {% if file_selected and data %}active{% endif %}" data-step="3">
+                <span class="step-number">3</span>
+                <span class="step-label">Compare</span>
+            </div>
         </div>
 
-        <!-- Comment Filter Section -->
-        <div class="comment-filter-section" style="margin-right: 10px;">
-            <form action="/" method="get" id="comment-filter-form" style="display: flex; align-items: center; gap: 10px;">
-                <!-- Preserve all current query parameters except 'filter_comment' and 'page' -->
-                {% for key, value in request.args.items() if key not in ['filter_comment', 'page'] %}
-                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% if not has_files %}
+        <!-- ========== WELCOME VIEW: No files uploaded ========== -->
+        <div class="welcome-view">
+            <div class="welcome-content">
+                <div class="welcome-icon">
+                    <i class="material-icons">description</i>
+                </div>
+                <h2>Get Started</h2>
+                <p class="welcome-subtitle">Upload an Excel file to begin comparing hadith texts</p>
+
+                <div class="main-upload-dropzone" id="main-upload-dropzone">
+                    <div class="dropzone-icon">
+                        <i class="material-icons">cloud_upload</i>
+                    </div>
+                    <div class="dropzone-text">
+                        <p class="dropzone-main">Drag & drop your Excel file here</p>
+                        <p class="dropzone-sub">or click to browse from your computer</p>
+                    </div>
+                    <input type="file" id="main-file-upload-input" accept=".xlsx,.xls" style="display: none;">
+                    <button class="btn-upload-primary" onclick="event.stopPropagation(); document.getElementById('main-file-upload-input').click()">
+                        <i class="material-icons">folder_open</i> Browse Files
+                    </button>
+                </div>
+
+                <div id="main-upload-progress" class="upload-progress-container" style="display: none;">
+                    <div class="progress-info">
+                        <span id="main-upload-filename"></span>
+                        <span id="main-upload-percentage">0%</span>
+                    </div>
+                    <div class="progress-bar"><div class="progress-fill" id="main-progress-fill"></div></div>
+                    <p id="main-upload-status" class="upload-status">Uploading...</p>
+                </div>
+
+                <div class="welcome-divider">
+                    <span>or</span>
+                </div>
+
+                <button class="btn-secondary-action" onclick="openAdvancedSettings(); switchToTab('sheets-tab');">
+                    <i class="material-icons">table_chart</i> Import from Google Sheets
+                </button>
+
+                <p class="supported-formats">Supported formats: .xlsx, .xls</p>
+            </div>
+        </div>
+
+        {% elif not file_selected %}
+        <!-- ========== FILE LIST VIEW: Files exist but none selected ========== -->
+        <div class="file-list-view">
+            <div class="file-list-header">
+                <h2><i class="material-icons">folder</i> Your Files</h2>
+                <p>Select a file to start comparing, or upload a new one</p>
+            </div>
+
+            <div class="file-list-actions">
+                <button class="btn-upload-new" onclick="document.getElementById('file-list-upload-input').click()">
+                    <i class="material-icons">add</i> Upload New File
+                </button>
+                <input type="file" id="file-list-upload-input" accept=".xlsx,.xls" style="display: none;">
+                <button class="btn-import-sheets" onclick="openAdvancedSettings(); switchToTab('sheets-tab');">
+                    <i class="material-icons">table_chart</i> Import from Sheets
+                </button>
+            </div>
+
+            <div id="file-list-upload-progress" class="upload-progress-container" style="display: none;">
+                <div class="progress-info">
+                    <span id="file-list-upload-filename"></span>
+                    <span id="file-list-upload-percentage">0%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="file-list-progress-fill"></div></div>
+                <p id="file-list-upload-status" class="upload-status">Uploading...</p>
+            </div>
+
+            <div class="file-cards-container">
+                {% for file in uploaded_files %}
+                <div class="file-card" data-filename="{{ file.filename }}">
+                    <div class="file-card-icon">
+                        <i class="material-icons">description</i>
+                    </div>
+                    <div class="file-card-info">
+                        <h3 class="file-card-name" title="{{ file.filename }}">{{ file.filename }}</h3>
+                        <p class="file-card-meta">
+                            <span class="file-size">{{ file.display_size }}</span>
+                            <span class="file-date">{{ file.modified[:10] }}</span>
+                        </p>
+                    </div>
+                    <div class="file-card-actions">
+                        <button class="btn-select-file" onclick="selectAndLoadFile('{{ file.filename }}')" title="Select this file">
+                            <i class="material-icons">play_arrow</i> Open
+                        </button>
+                        <button class="btn-delete-file" onclick="deleteFileFromList('{{ file.filename }}')" title="Delete file">
+                            <i class="material-icons">delete</i>
+                        </button>
+                    </div>
+                </div>
                 {% endfor %}
+            </div>
+        </div>
 
-                <select name="filter_comment" id="main-filter-comment-select" class="filter-select" onchange="this.form.submit()" style="max-width: 200px;">
-                    <option value="">All Comments</option>
-                    <!-- Options will be populated dynamically -->
+        {% elif file_selected and data %}
+        <!-- ========== DATA VIEW: File selected and data available ========== -->
+        <div class="controls">
+            <div class="current-file-info">
+                <i class="material-icons">description</i>
+                <span class="current-file-name">{{ current_file_name }}</span>
+                <button class="btn-change-file" onclick="deselectCurrentFile()" title="Change file">
+                    <i class="material-icons">swap_horiz</i>
+                </button>
+            </div>
+            <div class="pagination-info">
+                {% if total_rows > 0 %}
+                    Showing {{ (current_page - 1) * rows_per_page + 1 }} to
+                    {{ [current_page * rows_per_page, total_rows] | min }} of {{ total_rows }} rows
+                {% endif %}
+            </div>
+
+            <!-- Comment Filter Section -->
+            <div class="comment-filter-section">
+                <form action="/" method="get" id="comment-filter-form" class="comment-filter-form">
+                    <!-- Preserve all current query parameters except 'filter_comment' and 'page' -->
+                    {% for key, value in request.args.items() if key not in ['filter_comment', 'page'] %}
+                        <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+
+                    <select name="filter_comment" id="main-filter-comment-select" class="filter-select comment-filter-select" onchange="this.form.submit()">
+                        <option value="">All Comments</option>
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </form>
+            </div>
+
+            <div class="regenerate-controls">
+                <select id="regenerate-color-select" class="regenerate-color-select">
+                    <option value="any">Any Color</option>
+                    <option value="none">No Color</option>
+                    <option value="green">Green</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="red">Red</option>
                 </select>
-                
-            </form>
+                <button id="regenerate-all-btn" class="regenerate-all-btn" title="Regenerate all cells">
+                    <i class="material-icons">offline_bolt</i> Regenerate All
+                </button>
+                <button id="regenerate-all-custom-btn" class="regenerate-all-btn" title="Regenerate all cells with custom prompt">
+                    <i class="material-icons">edit_note</i> Custom Prompt All
+                </button>
+            </div>
         </div>
-
-        <div class="regenerate-controls">
-            <select id="regenerate-color-select" class="regenerate-color-select">
-                <option value="any">Any Color</option>
-                <option value="none">No Color</option>
-                <option value="green">Green</option>
-                <option value="yellow">Yellow</option>
-                <option value="red">Red</option>
-            </select>
-            <button id="regenerate-all-btn" class="regenerate-all-btn" title="Regenerate all cells">
-                <i class="material-icons">offline_bolt</i> Regenerate All
-            </button>
-            <button id="regenerate-all-custom-btn" class="regenerate-all-btn" title="Regenerate all cells with custom prompt">
-                <i class="material-icons">edit_note</i> Custom Prompt All
-            </button>
-        </div>
-        </div>
-
-        {% if data %}
             <table>
                 <thead>
                     <tr>
@@ -229,11 +350,108 @@
                     {% endif %}
                 </div>
             {% endif %}
+
         {% else %}
-            <div class="no-data">
-                <p>No data available. Please ensure 'input.xlsx' file exists in the application directory with a 'hadith' sheet containing columns 'hadith_details' and 'analysis-3'.</p>
-                <p>All approvals are stored as colored cells directly in the Excel file.</p>
+        <!-- ========== CONFIG VIEW: Inline Column Mapping ========== -->
+        <div class="inline-config-view" id="inline-config-view">
+            <!-- File Header -->
+            <div class="config-file-header">
+                <div class="config-file-info">
+                    <i class="material-icons">description</i>
+                    <span class="config-file-name">{{ current_file_name or 'No file selected' }}</span>
+                </div>
+                <button class="btn-change-file-config" onclick="deselectCurrentFile()">
+                    <i class="material-icons">swap_horiz</i> Change File
+                </button>
             </div>
+
+            <!-- Sheet Selection -->
+            <div class="config-sheet-select">
+                <label for="inline-sheet-select">Select Sheet</label>
+                <select id="inline-sheet-select" class="column-select" onchange="loadInlineColumns()">
+                    <option value="">Loading sheets...</option>
+                </select>
+            </div>
+
+            <!-- Column Mapping Grid -->
+            <div class="column-mapping-inline" id="inline-column-mapping" style="display: none;">
+                <!-- Column A (Primary Text) - Required -->
+                <div class="column-card-inline required" id="card-col-a">
+                    <div class="column-card-header">
+                        <i class="material-icons">text_fields</i>
+                        <span class="column-title">Column A (Primary Text)</span>
+                        <span class="required-badge">Required</span>
+                        <i class="material-icons success-icon" id="check-col-a" style="display:none;">check_circle</i>
+                    </div>
+                    <select id="inline-col-primary" class="column-select" onchange="updateColumnCard('col-a', this); loadColumnPreview('col-a', this.value)">
+                        <option value="">Select column...</option>
+                    </select>
+                    <div class="column-preview" id="preview-col-a">
+                        <div class="column-preview-label">Preview</div>
+                        <div class="column-preview-empty">Select a column to see preview</div>
+                    </div>
+                </div>
+
+                <!-- Column B (Secondary Text) - Required -->
+                <div class="column-card-inline required" id="card-col-b">
+                    <div class="column-card-header">
+                        <i class="material-icons">compare</i>
+                        <span class="column-title">Column B (Secondary Text)</span>
+                        <span class="required-badge">Required</span>
+                        <i class="material-icons success-icon" id="check-col-b" style="display:none;">check_circle</i>
+                    </div>
+                    <select id="inline-col-secondary" class="column-select" onchange="updateColumnCard('col-b', this); loadColumnPreview('col-b', this.value)">
+                        <option value="">Select column...</option>
+                    </select>
+                    <div class="column-preview" id="preview-col-b">
+                        <div class="column-preview-label">Preview</div>
+                        <div class="column-preview-empty">Select a column to see preview</div>
+                    </div>
+                </div>
+
+                <!-- Arabic Text Column - Optional -->
+                <div class="column-card-inline optional" id="card-col-arabic">
+                    <div class="column-card-header">
+                        <i class="material-icons">translate</i>
+                        <span class="column-title">Arabic Text Column</span>
+                        <span class="optional-badge">Optional</span>
+                    </div>
+                    <select id="inline-col-arabic" class="column-select" onchange="loadColumnPreview('col-arabic', this.value)">
+                        <option value="">None</option>
+                    </select>
+                    <div class="column-preview" id="preview-col-arabic">
+                        <div class="column-preview-label">Preview</div>
+                        <div class="column-preview-empty">Used for AI generation context</div>
+                    </div>
+                </div>
+
+                <!-- ID Column - Optional -->
+                <div class="column-card-inline optional" id="card-col-id">
+                    <div class="column-card-header">
+                        <i class="material-icons">tag</i>
+                        <span class="column-title">ID Column</span>
+                        <span class="optional-badge">Optional</span>
+                    </div>
+                    <select id="inline-col-id" class="column-select" onchange="loadColumnPreview('col-id', this.value)">
+                        <option value="">None</option>
+                    </select>
+                    <div class="column-preview" id="preview-col-id">
+                        <div class="column-preview-label">Preview</div>
+                        <div class="column-preview-empty">Row identifier column</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="config-submit">
+                <button class="btn-start-comparing" id="btn-start-comparing" onclick="saveInlineColumnConfig()" disabled>
+                    <i class="material-icons">play_arrow</i> Start Comparing
+                </button>
+                <p class="config-validation-msg" id="config-validation-msg">
+                    <i class="material-icons">info</i> Select required columns to continue
+                </p>
+            </div>
+        </div>
         {% endif %}
     </div>
 
@@ -272,6 +490,7 @@
                                 <option value="claude">Claude</option>
                                 <option value="deepseek">DeepSeek</option>
                                 <option value="grok">Grok</option>
+                                <option value="openai">OpenAI (GPT-4)</option>
                             </select>
                         </div>
                         <div class="prompt-list-header">
@@ -326,8 +545,14 @@
 
     <!-- Sidebar with Combined Filters -->
     <div id="settings-sidebar" class="sidebar">
-        <button id="sidebar-close" class="sidebar-close-btn">×</button>
+        <button id="sidebar-close" class="sidebar-close-btn">&times;</button>
         <h3>Settings</h3>
+
+        <!-- Advanced Settings Button -->
+        <button onclick="openAdvancedSettings()" class="sidebar-advanced-settings-btn">
+            <i class="material-icons">tune</i>
+            Upload & API Settings
+        </button>
         <hr>
 
         <div class="sidebar-section theme-section">
@@ -360,7 +585,7 @@
         <div class="sidebar-section data-section">
             <!-- Chunk Selector -->
             <div class="setting-item compact">
-                <form action="/select_chunk" method="post" id="chunk-form" style="display: flex;justify-content: space-between; align-items: center;">
+                <form action="/select_chunk" method="post" id="chunk-form">
                     <label for="chunk_path">Chunk:</label>
                     <select name="chunk_path" id="chunk_path" onchange="this.form.submit()" class="compact-select">
                         {% for chunk in available_chunks %}
@@ -373,8 +598,8 @@
             </div>
             
             <!-- Rows per page -->
-            <div class="setting-item compact" style="margin-top: 10px;">
-                <form action="/" method="get" id="rows-form" style="display: flex;justify-content: space-between; align-items: center;">
+            <div class="setting-item compact">
+                <form action="/" method="get" id="rows-form">
                     <!-- Preserve all current query parameters except 'rows_per_page' and 'page' -->
                     {% for key, value in request.args.items() if key not in ['rows_per_page', 'page'] %}
                         <input type="hidden" name="{{ key }}" value="{{ value }}">
@@ -401,7 +626,7 @@
 
                 <h4>Sort By Ratio</h4>
                 <div class="filter-item">
-                    <label for="sort-order" style="margin-right: 80px;">Sort by Ratio:</label>
+                    <label for="sort-order">Sort by Ratio:</label>
                     <select name="sort_order" id="sort-order" class="filter-select">
                         <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Asc (Different First)</option>
                         <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Desc (Similar First)</option>
@@ -424,7 +649,7 @@
                     <label for="filter-change-lt-input">Less Than <</label>
                     <input type="text" step="any" name="filter_change_lt_value" id="filter-change-lt-input" value="{{ filter_change_lt_value }}" placeholder="e.g., 5">
                 </div>
-                <div class="filter-item range-filter" style="flex-wrap: nowrap;">
+                <div class="filter-item range-filter">
                     <label for="filter-change-from-input">Between</label>
                     <input type="text" step="any" name="filter_change_from_value" id="filter-change-from-input" value="{{ filter_change_from_value }}" placeholder="From">
                     <span class="range-separator">and</span>
@@ -433,7 +658,7 @@
 
                 <h4>Color Filter</h4>
                 <div class="filter-item">
-                    <label for="filter-color-a" style="margin-right: 80px;">Column A</label>
+                    <label for="filter-color-a">Column A</label>
                     <select name="filter_color_a" id="filter-color-a" class="filter-select">
                         <option value="any" {% if filter_color_a == 'any' %}selected{% endif %}>Any Color</option>
                         <option value="none" {% if filter_color_a == 'none' %}selected{% endif %}>No Color</option>
@@ -443,7 +668,7 @@
                     </select>
                 </div>
                 <div class="filter-item">
-                    <label for="filter-color-b" style="margin-right: 80px;">Column B</label>
+                    <label for="filter-color-b">Column B</label>
                     <select name="filter_color_b" id="filter-color-b" class="filter-select">
                         <option value="any" {% if filter_color_b == 'any' %}selected{% endif %}>Any Color</option>
                         <option value="none" {% if filter_color_b == 'none' %}selected{% endif %}>No Color</option>
@@ -469,6 +694,2354 @@
         </div>
     </div>
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Advanced Settings Modal -->
+    <div id="advancedSettingsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2><i class="material-icons" style="vertical-align: middle;">settings</i> Settings</h2>
+                <button class="modal-close-btn" onclick="closeAdvancedSettings()">&times;</button>
+            </div>
+
+            <div class="modal-tabs">
+                <button class="tab-btn active" data-tab="upload-tab">
+                    <i class="material-icons">cloud_upload</i>
+                    <span>Upload</span>
+                </button>
+                <button class="tab-btn" data-tab="sheets-tab">
+                    <i class="material-icons">table_chart</i>
+                    <span>Google Sheets</span>
+                </button>
+                <button class="tab-btn" data-tab="ai-tab">
+                    <i class="material-icons">smart_toy</i>
+                    <span>AI Providers</span>
+                </button>
+                <button class="tab-btn" data-tab="processing-tab">
+                    <i class="material-icons">settings</i>
+                    <span>Processing</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Upload Tab -->
+                <div id="upload-tab" class="tab-content active">
+                    <div class="upload-section">
+                        <div class="section-header">
+                            <h3><i class="material-icons">file_upload</i> Upload Excel File</h3>
+                            <span class="section-hint">Supported formats: .xlsx, .xls</span>
+                        </div>
+
+                        <div id="upload-dropzone" class="upload-dropzone">
+                            <div class="dropzone-icon">
+                                <i class="material-icons">cloud_upload</i>
+                            </div>
+                            <div class="dropzone-text">
+                                <p class="dropzone-main">Drag & drop your Excel file here</p>
+                                <p class="dropzone-sub">or click to browse from your computer</p>
+                            </div>
+                            <input type="file" id="file-upload-input" accept=".xlsx,.xls" style="display: none;">
+                            <button class="btn-browse" onclick="event.stopPropagation(); document.getElementById('file-upload-input').click()">
+                                <i class="material-icons">folder_open</i> Browse Files
+                            </button>
+                        </div>
+
+                        <div id="upload-progress" class="upload-progress-container" style="display: none;">
+                            <div class="progress-info">
+                                <span id="upload-filename"></span>
+                                <span id="upload-percentage">0%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
+                            <p id="upload-status" class="upload-status">Uploading...</p>
+                        </div>
+                    </div>
+
+                    <div class="files-section">
+                        <div class="section-header">
+                            <h3><i class="material-icons">folder</i> Available Files</h3>
+                            <button class="btn-refresh" onclick="loadUploadedFiles()" title="Refresh list">
+                                <i class="material-icons">refresh</i>
+                            </button>
+                        </div>
+                        <div id="uploaded-files-list" class="files-list">
+                            <div class="files-loading">
+                                <i class="material-icons spinning">sync</i>
+                                <span>Loading files...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column Configuration Section -->
+                    <div class="column-config-section" id="column-config-section">
+                        <div class="section-header">
+                            <h3><i class="material-icons">view_column</i> Column Mapping</h3>
+                        </div>
+                        <p class="section-description">Configure which columns to use for comparison. Select a file first to see available columns.</p>
+
+                        <div class="column-sheet-select">
+                            <label for="config-sheet-select">Sheet Name</label>
+                            <select id="config-sheet-select" class="column-select" onchange="loadColumnsForSheet()">
+                                <option value="">Select a sheet...</option>
+                            </select>
+                        </div>
+
+                        <div class="column-mapping-grid" id="column-mapping-grid" style="display: none;">
+                            <div class="column-card">
+                                <div class="column-card-header">
+                                    <i class="material-icons">text_fields</i>
+                                    <span>Column A (Primary Text)</span>
+                                </div>
+                                <select id="col-primary-text" class="column-select">
+                                    <option value="">Select column...</option>
+                                </select>
+                                <p class="column-hint">The main text column to display on the left</p>
+                            </div>
+
+                            <div class="column-card">
+                                <div class="column-card-header">
+                                    <i class="material-icons">compare</i>
+                                    <span>Column B (Secondary Text)</span>
+                                </div>
+                                <select id="col-secondary-text" class="column-select">
+                                    <option value="">Select column...</option>
+                                </select>
+                                <p class="column-hint">The comparison/generated text column on the right</p>
+                            </div>
+
+                            <div class="column-card optional">
+                                <div class="column-card-header">
+                                    <i class="material-icons">translate</i>
+                                    <span>Arabic Text Column</span>
+                                    <span class="optional-badge">Optional</span>
+                                </div>
+                                <select id="col-arabic-text" class="column-select">
+                                    <option value="">None</option>
+                                </select>
+                                <p class="column-hint">Used for AI generation context</p>
+                            </div>
+
+                            <div class="column-card optional">
+                                <div class="column-card-header">
+                                    <i class="material-icons">tag</i>
+                                    <span>ID Column</span>
+                                    <span class="optional-badge">Optional</span>
+                                </div>
+                                <select id="col-id" class="column-select">
+                                    <option value="">None</option>
+                                </select>
+                                <p class="column-hint">Row identifier column</p>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary btn-save-config" onclick="saveColumnConfig()" id="save-column-config-btn" disabled>
+                            <i class="material-icons">save</i> Save Column Configuration
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Google Sheets Tab -->
+                <div id="sheets-tab" class="tab-content">
+                    <div class="sheets-section">
+                        <div class="section-header">
+                            <h3><i class="material-icons">download</i> Import from Google Sheets</h3>
+                        </div>
+                        <p class="section-description">Import data directly from a Google Sheet using the service account.</p>
+
+                        <div class="form-group">
+                            <label for="sheets-url">Google Sheet URL or ID</label>
+                            <input type="text" id="sheets-url" placeholder="https://docs.google.com/spreadsheets/d/..." class="form-input">
+                        </div>
+
+                        <div id="sheets-info" class="sheets-info-card" style="display: none;">
+                            <div class="info-row">
+                                <i class="material-icons">table_chart</i>
+                                <span><strong>Sheet:</strong> <span id="sheets-title"></span></span>
+                            </div>
+                            <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
+                                <label for="sheets-worksheet">Select Worksheet</label>
+                                <select id="sheets-worksheet" class="form-select"></select>
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="btn-secondary" onclick="fetchSheetInfo()">
+                                <i class="material-icons">search</i> Get Sheet Info
+                            </button>
+                            <button class="btn-primary" onclick="importFromSheets(false)" id="import-sheets-btn" disabled>
+                                <i class="material-icons">download</i> Import Data
+                            </button>
+                            <button class="btn-primary" onclick="importFromSheets(true)" id="import-all-sheets-btn" disabled style="background: #28a745;">
+                                <i class="material-icons">playlist_add</i> Import All Worksheets
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="sheets-section">
+                        <div class="section-header">
+                            <h3><i class="material-icons">upload</i> Export to Google Sheets</h3>
+                        </div>
+                        <p class="section-description">Export your current data back to a Google Sheet.</p>
+
+                        <div class="form-group">
+                            <label for="export-sheets-url">Target Sheet URL</label>
+                            <input type="text" id="export-sheets-url" placeholder="https://docs.google.com/spreadsheets/d/..." class="form-input">
+                        </div>
+                        <button class="btn-secondary" onclick="exportToSheets()">
+                            <i class="material-icons">upload</i> Export Current Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Providers Tab -->
+                <div id="ai-tab" class="tab-content">
+                    <div class="section-header">
+                        <h3><i class="material-icons">vpn_key</i> AI Provider Configuration</h3>
+                    </div>
+                    <p class="section-description">Configure API keys for each AI provider. Keys are encrypted and stored securely.</p>
+
+                    <div id="ai-providers-list" class="providers-grid">
+                        <!-- Google -->
+                        <div class="provider-card">
+                            <div class="provider-header">
+                                <h4>Google (Gemini)</h4>
+                                <span id="google-status" class="status-badge">Not configured</span>
+                            </div>
+                            <div class="provider-fields">
+                                <input type="password" id="google-api-key" placeholder="API Key" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <input type="text" id="google-model" placeholder="Model (e.g., gemini-2.0-flash)" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-small" onclick="saveApiKey('google')">Save</button>
+                                    <button class="btn-small btn-secondary" onclick="testApiKey('google')">Test</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Claude -->
+                        <div class="provider-card">
+                            <div class="provider-header">
+                                <h4>Anthropic (Claude)</h4>
+                                <span id="claude-status" class="status-badge">Not configured</span>
+                            </div>
+                            <div class="provider-fields">
+                                <input type="password" id="claude-api-key" placeholder="API Key" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <input type="text" id="claude-model" placeholder="Model (e.g., claude-3-haiku-20240307)" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-small" onclick="saveApiKey('claude')">Save</button>
+                                    <button class="btn-small btn-secondary" onclick="testApiKey('claude')">Test</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- OpenAI -->
+                        <div class="provider-card">
+                            <div class="provider-header">
+                                <h4>OpenAI</h4>
+                                <span id="openai-status" class="status-badge">Not configured</span>
+                            </div>
+                            <div class="provider-fields">
+                                <input type="password" id="openai-api-key" placeholder="API Key" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <input type="text" id="openai-model" placeholder="Model (e.g., gpt-4o)" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-small" onclick="saveApiKey('openai')">Save</button>
+                                    <button class="btn-small btn-secondary" onclick="testApiKey('openai')">Test</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DeepSeek -->
+                        <div class="provider-card">
+                            <div class="provider-header">
+                                <h4>DeepSeek</h4>
+                                <span id="deepseek-status" class="status-badge">Not configured</span>
+                            </div>
+                            <div class="provider-fields">
+                                <input type="password" id="deepseek-api-key" placeholder="API Key" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <input type="text" id="deepseek-model" placeholder="Model (e.g., deepseek-chat)" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-small" onclick="saveApiKey('deepseek')">Save</button>
+                                    <button class="btn-small btn-secondary" onclick="testApiKey('deepseek')">Test</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grok -->
+                        <div class="provider-card">
+                            <div class="provider-header">
+                                <h4>Grok (X.AI)</h4>
+                                <span id="grok-status" class="status-badge">Not configured</span>
+                            </div>
+                            <div class="provider-fields">
+                                <input type="password" id="grok-api-key" placeholder="API Key" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <input type="text" id="grok-model" placeholder="Model (e.g., grok-1)" style="width: 100%; padding: 8px; margin-bottom: 8px;">
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-small" onclick="saveApiKey('grok')">Save</button>
+                                    <button class="btn-small btn-secondary" onclick="testApiKey('grok')">Test</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Settings Tab -->
+                <div id="processing-tab" class="tab-content">
+                    <div class="section-header">
+                        <h3><i class="material-icons">tune</i> Processing Settings</h3>
+                    </div>
+                    <p class="section-description">Configure how batch operations and API calls are handled.</p>
+
+                    <div class="settings-grid">
+                        <div class="setting-card">
+                            <div class="setting-icon"><i class="material-icons">layers</i></div>
+                            <div class="setting-content">
+                                <label for="batch-size">Batch Size</label>
+                                <input type="number" id="batch-size" value="5" min="1" max="50" class="form-input">
+                                <small>Number of rows to process at once</small>
+                            </div>
+                        </div>
+
+                        <div class="setting-card">
+                            <div class="setting-icon"><i class="material-icons">replay</i></div>
+                            <div class="setting-content">
+                                <label for="max-retries">Max Retries</label>
+                                <input type="number" id="max-retries" value="3" min="0" max="10" class="form-input">
+                                <small>Retry attempts for failed API calls</small>
+                            </div>
+                        </div>
+
+                        <div class="setting-card">
+                            <div class="setting-icon"><i class="material-icons">schedule</i></div>
+                            <div class="setting-content">
+                                <label for="retry-delay">Retry Delay (sec)</label>
+                                <input type="number" id="retry-delay" value="0" min="0" max="30" class="form-input">
+                                <small>Delay between retry attempts</small>
+                            </div>
+                        </div>
+
+                        <div class="setting-card">
+                            <div class="setting-icon"><i class="material-icons">save</i></div>
+                            <div class="setting-content">
+                                <label for="save-interval">Auto-save Interval</label>
+                                <input type="number" id="save-interval" value="5" min="1" max="100" class="form-input">
+                                <small>Save progress every N rows</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn-primary save-settings-btn" onclick="saveProcessingSettings()">
+                        <i class="material-icons">save</i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal Styles (using app CSS variables for consistency) -->
+    <style>
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-container {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            width: 90%;
+            box-shadow: var(--shadow-lg);
+            animation: modalSlideIn 0.3s ease;
+        }
+        @keyframes modalSlideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--medium-gray);
+            background: var(--light-gray);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-color);
+        }
+        .modal-header h2 i {
+            color: var(--primary-color);
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--dark-gray);
+            transition: color 0.2s, transform 0.2s;
+            line-height: 1;
+        }
+        .modal-close-btn:hover {
+            color: var(--primary-color);
+            transform: scale(1.1);
+        }
+        .modal-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--medium-gray);
+            padding: 0;
+            background: var(--light-gray);
+            overflow-x: auto;
+        }
+        .tab-btn {
+            padding: 14px 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--dark-gray);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .tab-btn i {
+            font-size: 20px;
+        }
+        .tab-btn:hover {
+            color: var(--text-color);
+            background: rgba(90, 103, 216, 0.05);
+        }
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: var(--card-bg);
+        }
+        .modal-body {
+            padding: 24px;
+            background: var(--card-bg);
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Section Headers */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .section-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+        .section-header h3 i {
+            color: var(--primary-color);
+            font-size: 22px;
+        }
+        .section-hint {
+            font-size: 12px;
+            color: var(--dark-gray);
+            background: var(--light-gray);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        /* Upload Dropzone */
+        .upload-section {
+            margin-bottom: 24px;
+        }
+        .upload-dropzone {
+            border: 2px dashed var(--medium-gray);
+            border-radius: var(--radius-lg);
+            padding: 40px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--light-gray);
+        }
+        .upload-dropzone:hover, .upload-dropzone.dragover {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+            transform: scale(1.01);
+        }
+        .dropzone-icon {
+            margin-bottom: 16px;
+        }
+        .dropzone-icon i {
+            font-size: 56px;
+            color: var(--primary-color);
+            opacity: 0.8;
+        }
+        .dropzone-text {
+            margin-bottom: 20px;
+        }
+        .dropzone-main {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-color);
+            margin: 0 0 6px 0;
+        }
+        .dropzone-sub {
+            font-size: 13px;
+            color: var(--dark-gray);
+            margin: 0;
+        }
+        .btn-browse {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-browse:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(90, 103, 216, 0.3);
+        }
+        .btn-browse i {
+            font-size: 18px;
+        }
+
+        /* Upload Progress */
+        .modal-body .upload-progress-container {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--light-gray);
+            border-radius: var(--radius);
+            border: 1px solid var(--medium-gray);
+        }
+        .modal-body .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        #upload-filename {
+            color: var(--text-color);
+            font-weight: 500;
+        }
+        #upload-percentage {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        .modal-body .progress-bar {
+            height: 6px;
+            background: var(--medium-gray);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .modal-body .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            width: 0%;
+            transition: width 0.3s;
+            border-radius: 3px;
+        }
+        .modal-body .upload-status {
+            margin: 8px 0 0 0;
+            font-size: 12px;
+            color: var(--dark-gray);
+        }
+        .modal-body .upload-status.success {
+            color: var(--success-color);
+        }
+        .modal-body .upload-status.error {
+            color: var(--error-color);
+        }
+
+        /* Files Section */
+        .files-section {
+            border-top: 1px solid var(--medium-gray);
+            padding-top: 20px;
+        }
+        .btn-refresh {
+            background: transparent;
+            border: 1px solid var(--medium-gray);
+            padding: 6px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            color: var(--dark-gray);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .btn-refresh:hover {
+            background: var(--light-gray);
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-refresh i {
+            font-size: 18px;
+        }
+        .files-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius);
+        }
+        .files-loading {
+            padding: 20px;
+            text-align: center;
+            color: var(--dark-gray);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .files-loading i.spinning {
+            animation: spin 1s linear infinite;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--medium-gray);
+            transition: background 0.2s;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .file-item:hover {
+            background: var(--light-gray);
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .file-info i {
+            color: var(--success-color);
+            font-size: 20px;
+        }
+        .file-name {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        .file-size {
+            font-size: 12px;
+            color: var(--dark-gray);
+            background: var(--light-gray);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .file-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .file-btn {
+            background: transparent;
+            border: none;
+            padding: 6px 8px;
+            cursor: pointer;
+            color: var(--dark-gray);
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .file-btn i {
+            font-size: 18px;
+        }
+        .file-btn:hover {
+            background: var(--light-gray);
+            color: var(--primary-color);
+        }
+        .file-btn.load:hover {
+            background: rgba(72, 187, 120, 0.1);
+            color: var(--success-color);
+        }
+        .file-btn.load.active-btn {
+            color: var(--success-color);
+            cursor: default;
+        }
+        .file-btn.delete:hover {
+            background: rgba(245, 101, 101, 0.1);
+            color: var(--error-color);
+        }
+        .file-item.active {
+            background: rgba(72, 187, 120, 0.08);
+            border-left: 3px solid var(--success-color);
+        }
+        .file-item.active .file-name {
+            color: var(--success-color);
+            font-weight: 600;
+        }
+        .no-files {
+            padding: 30px;
+            text-align: center;
+            color: var(--dark-gray);
+        }
+        .no-files i {
+            font-size: 40px;
+            opacity: 0.4;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        /* Column Configuration Section */
+        .column-config-section {
+            border-top: 1px solid var(--medium-gray);
+            padding-top: 24px;
+            margin-top: 24px;
+        }
+        .column-sheet-select {
+            margin-bottom: 20px;
+        }
+        .column-sheet-select label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-color);
+            margin-bottom: 8px;
+        }
+        .column-select {
+            width: 100%;
+            padding: 12px 40px 12px 14px;
+            border: 2px solid var(--medium-gray);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .column-select:hover {
+            border-color: var(--primary-color);
+        }
+        .column-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.15);
+        }
+        .column-mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .column-card {
+            background: var(--light-gray);
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius);
+            padding: 16px;
+            transition: all 0.2s;
+        }
+        .column-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(90, 103, 216, 0.1);
+        }
+        .column-card.optional {
+            background: var(--card-bg);
+            border-style: dashed;
+        }
+        .column-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        .column-card-header i {
+            color: var(--primary-color);
+            font-size: 20px;
+        }
+        .column-card-header span:first-of-type {
+            flex: 1;
+        }
+        .optional-badge {
+            font-size: 10px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--light-gray);
+            color: var(--dark-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .column-card .column-select {
+            margin-bottom: 8px;
+        }
+        .column-hint {
+            margin: 0;
+            font-size: 12px;
+            color: var(--dark-gray);
+            line-height: 1.4;
+        }
+        .btn-save-config {
+            margin-top: 20px;
+            width: 100%;
+            justify-content: center;
+            padding: 14px 20px;
+            font-size: 15px;
+        }
+        .btn-save-config:disabled {
+            background: var(--medium-gray);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        @media (max-width: 600px) {
+            .column-mapping-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Dark mode for Settings Modal */
+        [data-theme="dark"] .modal-container {
+            background: var(--card-bg);
+        }
+        [data-theme="dark"] .modal-header {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .modal-header h2 {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .modal-close-btn {
+            color: var(--dark-gray);
+        }
+        [data-theme="dark"] .modal-close-btn:hover {
+            color: var(--primary-color);
+        }
+        [data-theme="dark"] .modal-tabs {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .tab-btn {
+            color: var(--dark-gray);
+        }
+        [data-theme="dark"] .tab-btn:hover {
+            color: var(--text-color);
+            background: rgba(114, 137, 218, 0.1);
+        }
+        [data-theme="dark"] .tab-btn.active {
+            color: var(--primary-color);
+            background: var(--card-bg);
+        }
+        [data-theme="dark"] .modal-body {
+            background: var(--card-bg);
+        }
+        [data-theme="dark"] .section-header h3 {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .section-header h3 i {
+            color: var(--primary-color);
+        }
+        [data-theme="dark"] .section-hint {
+            background: var(--medium-gray);
+            color: var(--dark-gray);
+        }
+        [data-theme="dark"] .upload-dropzone {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .upload-dropzone:hover,
+        [data-theme="dark"] .upload-dropzone.dragover {
+            background: var(--primary-light);
+            border-color: var(--primary-color);
+        }
+        [data-theme="dark"] .dropzone-main {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .dropzone-sub {
+            color: var(--dark-gray);
+        }
+        [data-theme="dark"] .column-select {
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            border-color: var(--medium-gray);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23dcddde' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        }
+        [data-theme="dark"] .column-select:hover,
+        [data-theme="dark"] .column-select:focus {
+            border-color: var(--primary-color);
+        }
+        [data-theme="dark"] .column-card {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .column-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(114, 137, 218, 0.2);
+        }
+        [data-theme="dark"] .column-card.optional {
+            background: var(--card-bg);
+        }
+        [data-theme="dark"] .column-card-header {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .column-card-header i {
+            color: var(--primary-color);
+        }
+        [data-theme="dark"] .optional-badge {
+            background: var(--medium-gray);
+            color: var(--dark-gray);
+        }
+        [data-theme="dark"] .column-hint {
+            color: var(--dark-gray);
+        }
+        [data-theme="dark"] .column-sheet-select label {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .btn-save-config:disabled {
+            background: var(--medium-gray);
+        }
+        [data-theme="dark"] .files-section {
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .files-list {
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .file-item {
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .file-item:hover {
+            background: var(--light-gray);
+        }
+        [data-theme="dark"] .file-item.active {
+            background: rgba(67, 181, 129, 0.1);
+        }
+        [data-theme="dark"] .file-name {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .file-size {
+            background: var(--medium-gray);
+            color: var(--dark-gray);
+        }
+
+        /* Provider Cards */
+        .provider-card {
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+            background: var(--card-bg);
+        }
+        .provider-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-color: var(--primary-color);
+        }
+        .provider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .provider-header h4 {
+            margin: 0;
+            font-size: 15px;
+            color: var(--text-color);
+        }
+        .status-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: var(--light-gray);
+            color: var(--dark-gray);
+        }
+        .status-badge.configured {
+            background: var(--added-bg);
+            color: var(--added-color);
+        }
+        [data-theme="dark"] .provider-card {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .provider-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(114, 137, 218, 0.2);
+        }
+        [data-theme="dark"] .provider-header h4 {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .status-badge {
+            background: var(--medium-gray);
+            color: var(--dark-gray);
+        }
+        [data-theme="dark"] .status-badge.configured {
+            background: var(--added-bg);
+            color: var(--added-color);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled {
+            background: var(--medium-gray);
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--light-gray);
+            color: var(--text-color);
+            border: 1px solid var(--medium-gray);
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+            background: var(--medium-gray);
+            border-color: var(--primary-color);
+        }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 13px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-small:hover {
+            background: var(--primary-dark);
+        }
+        .btn-small.btn-secondary {
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--medium-gray);
+        }
+        .btn-small.btn-secondary:hover {
+            background: var(--light-gray);
+            border-color: var(--primary-color);
+        }
+        [data-theme="dark"] .btn-secondary {
+            background: var(--light-gray);
+            color: var(--text-color);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .btn-secondary:hover {
+            background: var(--medium-gray);
+        }
+        [data-theme="dark"] .btn-small.btn-secondary {
+            color: var(--text-color);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .btn-small.btn-secondary:hover {
+            background: var(--medium-gray);
+        }
+
+        /* Form Groups */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-color);
+            display: block;
+            margin-bottom: 6px;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="password"] {
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius-sm);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.15);
+        }
+        [data-theme="dark"] .form-group label {
+            color: var(--text-color);
+        }
+
+        /* Section Descriptions */
+        .section-description {
+            color: var(--dark-gray);
+            margin: 0 0 20px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Form Inputs */
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 6px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.15);
+        }
+        .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 6px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+        }
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        [data-theme="dark"] .form-input {
+            background: var(--light-gray);
+            color: var(--text-color);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .form-input:focus {
+            border-color: var(--primary-color);
+        }
+        [data-theme="dark"] .form-select {
+            background: var(--light-gray);
+            color: var(--text-color);
+            border-color: var(--medium-gray);
+        }
+
+        /* Button Groups */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: var(--medium-gray);
+            margin: 24px 0;
+        }
+
+        /* Sheets Section */
+        .sheets-section {
+            margin-bottom: 8px;
+        }
+        .sheets-info-card {
+            margin: 16px 0;
+            padding: 16px;
+            background: var(--light-gray);
+            border-radius: var(--radius);
+            border: 1px solid var(--medium-gray);
+        }
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+        }
+        .info-row i {
+            color: var(--primary-color);
+        }
+        [data-theme="dark"] .sheets-info-card {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .info-row {
+            color: var(--text-color);
+        }
+
+        /* Providers Grid */
+        .providers-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        /* Settings Grid */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .setting-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px;
+            background: var(--light-gray);
+            border-radius: var(--radius);
+            border: 1px solid var(--medium-gray);
+        }
+        .setting-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            border-radius: var(--radius);
+            flex-shrink: 0;
+        }
+        .setting-icon i {
+            color: white;
+            font-size: 20px;
+        }
+        .setting-content {
+            flex: 1;
+        }
+        .setting-content label {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-color);
+            display: block;
+            margin-bottom: 4px;
+        }
+        .setting-content .form-input {
+            margin-top: 4px;
+        }
+        .setting-content small {
+            display: block;
+            margin-top: 6px;
+            color: var(--dark-gray);
+            font-size: 12px;
+        }
+        .save-settings-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 12px 20px;
+        }
+        [data-theme="dark"] .setting-card {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .setting-content label {
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .setting-content small {
+            color: var(--dark-gray);
+        }
+
+        /* Provider Card improvements */
+        .provider-card .provider-fields input {
+            background: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius-sm);
+        }
+        .provider-card .provider-fields input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.15);
+        }
+        [data-theme="dark"] .provider-card .provider-fields input {
+            background: var(--card-bg);
+            color: var(--text-color);
+            border-color: var(--medium-gray);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .modal-tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+            }
+            .tab-btn {
+                padding: 12px 16px;
+            }
+            .tab-btn span {
+                display: none;
+            }
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+
+    <!-- Settings Modal Scripts -->
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Modal functions
+        function openAdvancedSettings() {
+            // Close the sidebar first to prevent visual conflict
+            const sidebar = document.getElementById('settings-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+            document.body.style.overflow = ''; // Re-enable body scroll
+
+            document.getElementById('advancedSettingsModal').style.display = 'flex';
+            loadUploadedFiles();
+            loadSettings();
+        }
+
+        function closeAdvancedSettings() {
+            document.getElementById('advancedSettingsModal').style.display = 'none';
+        }
+
+        // Close modal on overlay click
+        document.getElementById('advancedSettingsModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'advancedSettingsModal') closeAdvancedSettings();
+        });
+
+        // File upload
+        const dropzone = document.getElementById('upload-dropzone');
+        const fileInput = document.getElementById('file-upload-input');
+
+        if (dropzone) {
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+            dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+            });
+            dropzone.addEventListener('click', () => fileInput.click());
+        }
+
+        fileInput?.addEventListener('change', () => {
+            if (fileInput.files.length) uploadFile(fileInput.files[0]);
+        });
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const progressContainer = document.getElementById('upload-progress');
+            const progressFill = progressContainer.querySelector('.progress-fill');
+            const uploadFilename = document.getElementById('upload-filename');
+            const uploadPercentage = document.getElementById('upload-percentage');
+            const uploadStatus = document.getElementById('upload-status');
+
+            progressContainer.style.display = 'block';
+            uploadFilename.textContent = file.name;
+            uploadPercentage.textContent = '0%';
+            uploadStatus.textContent = 'Uploading...';
+            uploadStatus.className = 'upload-status';
+            progressFill.style.width = '0%';
+
+            try {
+                // Simulate progress for better UX
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    if (progress < 90) {
+                        progress += Math.random() * 15;
+                        progress = Math.min(progress, 90);
+                        progressFill.style.width = progress + '%';
+                        uploadPercentage.textContent = Math.round(progress) + '%';
+                    }
+                }, 200);
+
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                clearInterval(progressInterval);
+
+                if (data.status === 'success') {
+                    progressFill.style.width = '100%';
+                    uploadPercentage.textContent = '100%';
+                    uploadStatus.textContent = 'Upload successful! File ready to use.';
+                    uploadStatus.className = 'upload-status success';
+                    loadUploadedFiles();
+
+                    // Hide progress after 3 seconds
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                    }, 3000);
+                } else {
+                    uploadStatus.textContent = 'Error: ' + data.message;
+                    uploadStatus.className = 'upload-status error';
+                    progressFill.style.width = '0%';
+                }
+            } catch (error) {
+                uploadStatus.textContent = 'Upload failed: ' + error.message;
+                uploadStatus.className = 'upload-status error';
+            }
+        }
+
+        // Track currently active file
+        let currentActiveFile = null;
+
+        async function loadUploadedFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+
+                const list = document.getElementById('uploaded-files-list');
+                if (data.files && data.files.length > 0) {
+                    // Get current active file from response if available
+                    currentActiveFile = data.current_file || null;
+
+                    list.innerHTML = data.files.map(f => {
+                        const isActive = f.filename === currentActiveFile;
+                        return `
+                        <div class="file-item ${isActive ? 'active' : ''}" data-filename="${f.filename}">
+                            <div class="file-info">
+                                <i class="material-icons" style="color: ${isActive ? '#28a745' : '#666'}">
+                                    ${isActive ? 'check_circle' : 'description'}
+                                </i>
+                                <span class="file-name">${f.filename}</span>
+                            </div>
+                            <div class="file-actions">
+                                <span class="file-size">${(f.size / 1024).toFixed(1)} KB</span>
+                                <button class="file-btn load ${isActive ? 'active-btn' : ''}" onclick="selectFile('${f.filename}')" title="${isActive ? 'Currently active' : 'Load this file'}">
+                                    <i class="material-icons">${isActive ? 'check' : 'play_arrow'}</i>
+                                </button>
+                                <button class="file-btn delete" onclick="deleteFile('${f.filename}')" title="Delete file">
+                                    <i class="material-icons">delete</i>
+                                </button>
+                            </div>
+                        </div>
+                    `}).join('');
+
+                    // Auto-load column config for the active file
+                    if (currentActiveFile) {
+                        loadFileColumnsConfig(currentActiveFile);
+                    }
+                } else {
+                    list.innerHTML = `
+                        <div class="no-files">
+                            <i class="material-icons">folder_open</i>
+                            <p>No files uploaded yet</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to load files:', error);
+                const list = document.getElementById('uploaded-files-list');
+                list.innerHTML = `
+                    <div class="no-files">
+                        <i class="material-icons">error_outline</i>
+                        <p>Failed to load files</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function selectFile(filename) {
+            if (currentActiveFile === filename) {
+                // Already active, just load column config for editing
+                loadFileColumnsConfig(filename);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/files/select', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    // Update active file and refresh list
+                    currentActiveFile = filename;
+                    loadUploadedFiles();
+                    // Load column configuration for the new file
+                    loadFileColumnsConfig(filename);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to select file: ' + error.message);
+            }
+        }
+
+        async function deleteFile(filename) {
+            if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/files/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    loadUploadedFiles(); // Refresh the list
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to delete file: ' + error.message);
+            }
+        }
+
+        // Column Configuration Functions
+        async function loadFileColumnsConfig(filename) {
+            try {
+                // First, get the saved config to know which sheet to load
+                let savedSheet = null;
+                let savedConfig = null;
+                try {
+                    const configResponse = await fetch('/api/settings/columns');
+                    const configData = await configResponse.json();
+                    if (configData.status === 'success') {
+                        savedSheet = configData.sheet_name;
+                        savedConfig = configData.columns;
+                    }
+                } catch (e) {
+                    console.log('No saved config found');
+                }
+
+                // Get available sheets first
+                const response = await fetch(`/api/files/${encodeURIComponent(filename)}/columns`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const sheetSelect = document.getElementById('config-sheet-select');
+                    sheetSelect.dataset.filename = filename;
+
+                    // Populate sheet selector
+                    sheetSelect.innerHTML = data.sheets.map(sheet =>
+                        `<option value="${sheet}">${sheet}</option>`
+                    ).join('');
+
+                    // Set the saved sheet if it exists in the available sheets
+                    const sheetToLoad = savedSheet && data.sheets.includes(savedSheet) ? savedSheet : data.sheets[0];
+                    sheetSelect.value = sheetToLoad;
+
+                    // Now load columns for the correct sheet
+                    const columnsResponse = await fetch(`/api/files/${encodeURIComponent(filename)}/columns?sheet=${encodeURIComponent(sheetToLoad)}`);
+                    const columnsData = await columnsResponse.json();
+
+                    if (columnsData.status === 'success') {
+                        populateColumnSelects(columnsData.columns);
+
+                        // Apply saved column values if available
+                        if (savedConfig) {
+                            if (savedConfig.primary_text) {
+                                document.getElementById('col-primary-text').value = savedConfig.primary_text;
+                            }
+                            if (savedConfig.secondary_text) {
+                                document.getElementById('col-secondary-text').value = savedConfig.secondary_text;
+                            }
+                            if (savedConfig.arabic_text) {
+                                document.getElementById('col-arabic-text').value = savedConfig.arabic_text;
+                            }
+                            if (savedConfig.number) {
+                                document.getElementById('col-id').value = savedConfig.number;
+                            }
+                        }
+                    }
+
+                    document.getElementById('column-mapping-grid').style.display = 'grid';
+                    document.getElementById('save-column-config-btn').disabled = false;
+                } else {
+                    console.error('Failed to load columns:', data.message);
+                }
+            } catch (error) {
+                console.error('Failed to load file columns:', error);
+            }
+        }
+
+        async function loadColumnsForSheet() {
+            const sheetSelect = document.getElementById('config-sheet-select');
+            const filename = sheetSelect.dataset.filename;
+            const sheet = sheetSelect.value;
+
+            if (!filename || !sheet) return;
+
+            try {
+                const response = await fetch(`/api/files/${encodeURIComponent(filename)}/columns?sheet=${encodeURIComponent(sheet)}`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    populateColumnSelects(data.columns);
+                }
+            } catch (error) {
+                console.error('Failed to load columns for sheet:', error);
+            }
+        }
+
+        function populateColumnSelects(columns) {
+            const selects = ['col-primary-text', 'col-secondary-text', 'col-arabic-text', 'col-id'];
+
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                const isOptional = selectId === 'col-arabic-text' || selectId === 'col-id';
+
+                select.innerHTML = isOptional
+                    ? '<option value="">None</option>'
+                    : '<option value="">Select column...</option>';
+
+                columns.forEach(col => {
+                    const option = document.createElement('option');
+                    option.value = col;
+                    option.textContent = col;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        async function saveColumnConfig() {
+            const sheetName = document.getElementById('config-sheet-select').value;
+            const primaryText = document.getElementById('col-primary-text').value;
+            const secondaryText = document.getElementById('col-secondary-text').value;
+            const arabicText = document.getElementById('col-arabic-text').value;
+            const idColumn = document.getElementById('col-id').value;
+
+            if (!primaryText || !secondaryText) {
+                alert('Please select at least Primary Text and Secondary Text columns.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/settings/columns', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        sheet_name: sheetName,
+                        columns: {
+                            primary_text: primaryText,
+                            secondary_text: secondaryText,
+                            arabic_text: arabicText || null,
+                            number: idColumn || null
+                        }
+                    })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('Column configuration saved! Reloading page...');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to save column config: ' + error.message);
+            }
+        }
+
+        // Google Sheets
+        async function fetchSheetInfo() {
+            const url = document.getElementById('sheets-url').value;
+            if (!url) return alert('Please enter a Sheet URL');
+
+            try {
+                const response = await fetch('/api/sheets/info', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url})
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('sheets-info').style.display = 'block';
+                    document.getElementById('sheets-title').textContent = data.info.title;
+
+                    const select = document.getElementById('sheets-worksheet');
+                    select.innerHTML = data.info.worksheets.map(w =>
+                        `<option value="${w.title}">${w.title} (${w.row_count} rows)</option>`
+                    ).join('');
+
+                    document.getElementById('import-sheets-btn').disabled = false;
+                    document.getElementById('import-all-sheets-btn').disabled = false;
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to fetch sheet info: ' + error.message);
+            }
+        }
+
+        async function importFromSheets(importAll = false) {
+            const url = document.getElementById('sheets-url').value;
+            const worksheet = document.getElementById('sheets-worksheet').value;
+
+            try {
+                const response = await fetch('/api/sheets/import', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url, worksheet, import_all: importAll})
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    if (importAll && data.sheets) {
+                        const sheetsInfo = data.sheets.map(s => `${s.name}: ${s.rows} rows`).join(', ');
+                        alert(`Imported ${data.sheets.length} worksheets successfully!\nTotal: ${data.rows} rows\n\nSheets: ${sheetsInfo}`);
+                    } else {
+                        alert('Imported successfully! ' + data.rows + ' rows');
+                    }
+                    loadUploadedFiles();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Import failed: ' + error.message);
+            }
+        }
+
+        async function exportToSheets() {
+            const url = document.getElementById('export-sheets-url').value;
+            if (!url) return alert('Please enter a target Sheet URL');
+
+            try {
+                const response = await fetch('/api/sheets/export', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url})
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('Export successful! ' + data.rows_exported + ' rows exported');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Export failed: ' + error.message);
+            }
+        }
+
+        // Settings
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    // Processing settings
+                    if (data.processing) {
+                        document.getElementById('batch-size').value = data.processing.batch_size || 5;
+                        document.getElementById('max-retries').value = data.processing.max_retries || 3;
+                        document.getElementById('retry-delay').value = data.processing.retry_delay || 0;
+                        document.getElementById('save-interval').value = data.processing.save_interval || 5;
+                    }
+
+                    // API keys status
+                    if (data.api_keys) {
+                        ['google', 'claude', 'openai', 'deepseek', 'grok'].forEach(provider => {
+                            const status = document.getElementById(`${provider}-status`);
+                            const config = data.api_keys[provider];
+                            if (config && config.has_key) {
+                                status.textContent = 'Configured';
+                                status.classList.add('configured');
+                                if (config.model_name) {
+                                    document.getElementById(`${provider}-model`).placeholder = config.model_name;
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        async function saveApiKey(provider) {
+            const apiKey = document.getElementById(`${provider}-api-key`).value;
+            const model = document.getElementById(`${provider}-model`).value;
+
+            try {
+                const response = await fetch(`/api/settings/api-key/${provider}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        api_key: apiKey,
+                        model_name: model || null
+                    })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('API key saved successfully');
+                    document.getElementById(`${provider}-api-key`).value = '';
+                    loadSettings();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to save: ' + error.message);
+            }
+        }
+
+        async function testApiKey(provider) {
+            try {
+                const response = await fetch(`/api/settings/api-key/${provider}/test`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                alert('Test failed: ' + error.message);
+            }
+        }
+
+        async function saveProcessingSettings() {
+            try {
+                const response = await fetch('/api/settings/processing', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        batch_size: document.getElementById('batch-size').value,
+                        max_retries: document.getElementById('max-retries').value,
+                        retry_delay: document.getElementById('retry-delay').value,
+                        save_interval: document.getElementById('save-interval').value
+                    })
+                });
+                const data = await response.json();
+                alert(data.status === 'success' ? 'Settings saved!' : 'Error: ' + data.message);
+            } catch (error) {
+                alert('Failed to save: ' + error.message);
+            }
+        }
+
+        // ========================================
+        // MAIN PAGE FILE MANAGEMENT FUNCTIONS
+        // ========================================
+
+        // Helper function to switch tabs in modal
+        function switchToTab(tabId) {
+            setTimeout(() => {
+                const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+                if (tabBtn) tabBtn.click();
+            }, 100);
+        }
+
+        // Generic upload function for main page dropzones
+        async function uploadFileFromMain(file, progressContainerId, filenameId, percentageId, statusId, progressFillId) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const progressContainer = document.getElementById(progressContainerId);
+            const progressFill = document.getElementById(progressFillId);
+            const filenameEl = document.getElementById(filenameId);
+            const percentageEl = document.getElementById(percentageId);
+            const statusEl = document.getElementById(statusId);
+
+            progressContainer.style.display = 'block';
+            filenameEl.textContent = file.name;
+            percentageEl.textContent = '0%';
+            statusEl.textContent = 'Uploading...';
+            statusEl.className = 'upload-status';
+            progressFill.style.width = '0%';
+
+            try {
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    if (progress < 90) {
+                        progress += Math.random() * 15;
+                        progress = Math.min(progress, 90);
+                        progressFill.style.width = progress + '%';
+                        percentageEl.textContent = Math.round(progress) + '%';
+                    }
+                }, 200);
+
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                clearInterval(progressInterval);
+
+                if (data.status === 'success') {
+                    progressFill.style.width = '100%';
+                    percentageEl.textContent = '100%';
+                    statusEl.textContent = 'Upload successful! Reloading...';
+                    statusEl.className = 'upload-status success';
+
+                    // Auto-select the uploaded file and reload
+                    setTimeout(async () => {
+                        await fetch('/api/files/select', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ filename: data.filename })
+                        });
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    statusEl.textContent = 'Error: ' + data.message;
+                    statusEl.className = 'upload-status error';
+                    progressFill.style.width = '0%';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Upload failed: ' + error.message;
+                statusEl.className = 'upload-status error';
+            }
+        }
+
+        // Setup main page upload dropzone (welcome view)
+        function setupMainUploadDropzone() {
+            const dropzone = document.getElementById('main-upload-dropzone');
+            const fileInput = document.getElementById('main-file-upload-input');
+
+            if (dropzone && fileInput) {
+                dropzone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add('dragover');
+                });
+                dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('dragover');
+                    if (e.dataTransfer.files.length) {
+                        uploadFileFromMain(
+                            e.dataTransfer.files[0],
+                            'main-upload-progress',
+                            'main-upload-filename',
+                            'main-upload-percentage',
+                            'main-upload-status',
+                            'main-progress-fill'
+                        );
+                    }
+                });
+                dropzone.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'BUTTON') fileInput.click();
+                });
+                fileInput.addEventListener('change', () => {
+                    if (fileInput.files.length) {
+                        uploadFileFromMain(
+                            fileInput.files[0],
+                            'main-upload-progress',
+                            'main-upload-filename',
+                            'main-upload-percentage',
+                            'main-upload-status',
+                            'main-progress-fill'
+                        );
+                    }
+                });
+            }
+        }
+
+        // Setup file list upload (file list view)
+        function setupFileListUpload() {
+            const fileInput = document.getElementById('file-list-upload-input');
+            if (fileInput) {
+                fileInput.addEventListener('change', () => {
+                    if (fileInput.files.length) {
+                        uploadFileFromMain(
+                            fileInput.files[0],
+                            'file-list-upload-progress',
+                            'file-list-upload-filename',
+                            'file-list-upload-percentage',
+                            'file-list-upload-status',
+                            'file-list-progress-fill'
+                        );
+                    }
+                });
+            }
+        }
+
+        // Select and load a file from the file list
+        async function selectAndLoadFile(filename) {
+            try {
+                const response = await fetch('/api/files/select', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to select file: ' + error.message);
+            }
+        }
+
+        // Delete file from file list
+        async function deleteFileFromList(filename) {
+            if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/files/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to delete file: ' + error.message);
+            }
+        }
+
+        // Deselect current file (go back to file list)
+        async function deselectCurrentFile() {
+            try {
+                const response = await fetch('/api/files/deselect', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to change file: ' + error.message);
+            }
+        }
+
+        // Initialize main page upload handlers on DOM load
+        document.addEventListener('DOMContentLoaded', function() {
+            setupMainUploadDropzone();
+            setupFileListUpload();
+            // Initialize inline config if on config view
+            initInlineConfig();
+        });
+
+        // ========================================
+        // INLINE COLUMN CONFIGURATION FUNCTIONS
+        // ========================================
+
+        // Current file name for inline config
+        let inlineConfigFilename = '{{ current_file_name | default("", true) }}';
+
+        // Initialize inline column configuration
+        async function initInlineConfig() {
+            const configView = document.getElementById('inline-config-view');
+            if (!configView || !inlineConfigFilename) return;
+
+            try {
+                // Load sheets for the current file
+                const response = await fetch(`/api/files/${encodeURIComponent(inlineConfigFilename)}/columns`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const sheetSelect = document.getElementById('inline-sheet-select');
+                    sheetSelect.innerHTML = '<option value="">Select a sheet...</option>';
+
+                    data.sheets.forEach(sheet => {
+                        const option = document.createElement('option');
+                        option.value = sheet;
+                        option.textContent = sheet;
+                        sheetSelect.appendChild(option);
+                    });
+
+                    // Auto-select first sheet if only one
+                    if (data.sheets.length === 1) {
+                        sheetSelect.value = data.sheets[0];
+                        loadInlineColumns();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load sheets:', error);
+            }
+        }
+
+        // Load columns when sheet is selected
+        async function loadInlineColumns() {
+            const sheetSelect = document.getElementById('inline-sheet-select');
+            const sheet = sheetSelect.value;
+            const columnMapping = document.getElementById('inline-column-mapping');
+
+            if (!sheet) {
+                columnMapping.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/files/${encodeURIComponent(inlineConfigFilename)}/columns?sheet=${encodeURIComponent(sheet)}`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const columns = data.columns;
+
+                    // Populate all column selects
+                    populateColumnSelect('inline-col-primary', columns, false);
+                    populateColumnSelect('inline-col-secondary', columns, false);
+                    populateColumnSelect('inline-col-arabic', columns, true);
+                    populateColumnSelect('inline-col-id', columns, true);
+
+                    // Show the column mapping grid
+                    columnMapping.style.display = 'grid';
+
+                    // Reset previews
+                    resetAllPreviews();
+
+                    // Validate config
+                    validateInlineConfig();
+                }
+            } catch (error) {
+                console.error('Failed to load columns:', error);
+            }
+        }
+
+        // Populate a column select dropdown
+        function populateColumnSelect(selectId, columns, includeNone) {
+            const select = document.getElementById(selectId);
+            const currentValue = select.value;
+
+            select.innerHTML = includeNone
+                ? '<option value="">None</option>'
+                : '<option value="">Select column...</option>';
+
+            columns.forEach(col => {
+                const option = document.createElement('option');
+                option.value = col;
+                option.textContent = col;
+                select.appendChild(option);
+            });
+
+            // Restore previous value if still valid
+            if (currentValue && columns.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        // Load column preview data
+        async function loadColumnPreview(cardId, column) {
+            const previewDiv = document.getElementById(`preview-${cardId}`);
+
+            if (!column) {
+                previewDiv.innerHTML = `
+                    <div class="column-preview-label">Preview</div>
+                    <div class="column-preview-empty">Select a column to see preview</div>
+                `;
+                return;
+            }
+
+            const sheet = document.getElementById('inline-sheet-select').value;
+            if (!sheet) return;
+
+            previewDiv.innerHTML = `
+                <div class="column-preview-label">Preview</div>
+                <div class="column-preview-empty"><i class="material-icons spinning" style="font-size:16px">sync</i> Loading...</div>
+            `;
+
+            try {
+                const response = await fetch('/api/columns/preview', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        filename: inlineConfigFilename,
+                        sheet: sheet,
+                        column: column
+                    })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success' && data.rows.length > 0) {
+                    previewDiv.innerHTML = `
+                        <div class="column-preview-label">Preview</div>
+                        ${data.rows.map(row => `<div class="column-preview-row">${escapeHtml(row) || '<em>empty</em>'}</div>`).join('')}
+                    `;
+                } else {
+                    previewDiv.innerHTML = `
+                        <div class="column-preview-label">Preview</div>
+                        <div class="column-preview-empty">No data in column</div>
+                    `;
+                }
+            } catch (error) {
+                previewDiv.innerHTML = `
+                    <div class="column-preview-label">Preview</div>
+                    <div class="column-preview-empty">Failed to load preview</div>
+                `;
+            }
+        }
+
+        // Helper to escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Reset all preview areas
+        function resetAllPreviews() {
+            ['col-a', 'col-b', 'col-arabic', 'col-id'].forEach(id => {
+                const previewDiv = document.getElementById(`preview-${id}`);
+                if (previewDiv) {
+                    const isOptional = id === 'col-arabic' || id === 'col-id';
+                    previewDiv.innerHTML = `
+                        <div class="column-preview-label">Preview</div>
+                        <div class="column-preview-empty">${isOptional ? getOptionalHint(id) : 'Select a column to see preview'}</div>
+                    `;
+                }
+            });
+        }
+
+        function getOptionalHint(id) {
+            if (id === 'col-arabic') return 'Used for AI generation context';
+            if (id === 'col-id') return 'Row identifier column';
+            return 'Select a column to see preview';
+        }
+
+        // Update column card visual state
+        function updateColumnCard(cardId, selectElement) {
+            const card = document.getElementById(`card-${cardId}`);
+            const checkIcon = document.getElementById(`check-${cardId}`);
+            const badge = card.querySelector('.required-badge');
+
+            if (selectElement.value) {
+                card.classList.add('selected');
+                card.classList.remove('error');
+                if (checkIcon) checkIcon.style.display = 'inline';
+                if (badge) badge.style.display = 'none';
+            } else {
+                card.classList.remove('selected');
+                if (checkIcon) checkIcon.style.display = 'none';
+                if (badge) badge.style.display = 'inline';
+            }
+
+            validateInlineConfig();
+        }
+
+        // Validate inline configuration
+        function validateInlineConfig() {
+            const colA = document.getElementById('inline-col-primary')?.value;
+            const colB = document.getElementById('inline-col-secondary')?.value;
+            const btn = document.getElementById('btn-start-comparing');
+            const msg = document.getElementById('config-validation-msg');
+
+            const isValid = colA && colB && colA !== colB;
+
+            if (btn) btn.disabled = !isValid;
+
+            if (msg) {
+                if (!colA && !colB) {
+                    msg.innerHTML = '<i class="material-icons">info</i> Select required columns to continue';
+                    msg.classList.remove('error');
+                } else if (!colA) {
+                    msg.innerHTML = '<i class="material-icons">warning</i> Column A (Primary Text) is required';
+                    msg.classList.add('error');
+                } else if (!colB) {
+                    msg.innerHTML = '<i class="material-icons">warning</i> Column B (Secondary Text) is required';
+                    msg.classList.add('error');
+                } else if (colA === colB) {
+                    msg.innerHTML = '<i class="material-icons">warning</i> Column A and B must be different';
+                    msg.classList.add('error');
+                } else {
+                    msg.innerHTML = '<i class="material-icons">check_circle</i> Ready to start comparing';
+                    msg.classList.remove('error');
+                }
+            }
+
+            return isValid;
+        }
+
+        // Save inline column configuration
+        async function saveInlineColumnConfig() {
+            if (!validateInlineConfig()) return;
+
+            const btn = document.getElementById('btn-start-comparing');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="material-icons spinning">sync</i> Saving...';
+
+            const sheetName = document.getElementById('inline-sheet-select').value;
+            const primaryText = document.getElementById('inline-col-primary').value;
+            const secondaryText = document.getElementById('inline-col-secondary').value;
+            const arabicText = document.getElementById('inline-col-arabic').value;
+            const idColumn = document.getElementById('inline-col-id').value;
+
+            try {
+                const response = await fetch('/api/settings/columns', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        sheet_name: sheetName,
+                        columns: {
+                            primary_text: primaryText,
+                            secondary_text: secondaryText,
+                            arabic_text: arabicText || null,
+                            number: idColumn || null
+                        }
+                    })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    // Reload to show data view
+                    window.location.reload();
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="material-icons">play_arrow</i> Start Comparing';
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons">play_arrow</i> Start Comparing';
+                alert('Failed to save configuration: ' + error.message);
+            }
+        }
+    </script>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
