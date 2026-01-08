@@ -840,6 +840,59 @@
 
                 <!-- Google Sheets Tab -->
                 <div id="sheets-tab" class="tab-content">
+                    <!-- Service Account Configuration -->
+                    <div class="sheets-section">
+                        <div class="section-header">
+                            <h3><i class="material-icons">vpn_key</i> Service Account Configuration</h3>
+                        </div>
+                        <p class="section-description">Configure your Google Cloud service account to enable Sheets integration.</p>
+
+                        <div id="service-account-status" class="service-account-card">
+                            <div id="sa-not-configured" style="display: none;">
+                                <div class="sa-status-badge not-configured">
+                                    <i class="material-icons">warning</i> Not Configured
+                                </div>
+                                <div class="form-group" style="margin-top: 12px;">
+                                    <label for="service-account-json">Paste Service Account JSON</label>
+                                    <textarea id="service-account-json" rows="8" placeholder='Paste your service_account.json content here...' class="form-input" style="font-family: monospace; font-size: 12px;"></textarea>
+                                    <small>Get this from Google Cloud Console: APIs &amp; Services &gt; Credentials &gt; Create Service Account &gt; Keys &gt; Add Key &gt; JSON</small>
+                                </div>
+                                <div class="button-group">
+                                    <button class="btn-primary" onclick="saveServiceAccount()">
+                                        <i class="material-icons">save</i> Save Credentials
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="sa-configured" style="display: none;">
+                                <div class="sa-status-badge configured">
+                                    <i class="material-icons">check_circle</i> Configured
+                                </div>
+                                <div class="sa-details">
+                                    <div class="sa-detail-row">
+                                        <strong>Project:</strong> <span id="sa-project-id"></span>
+                                    </div>
+                                    <div class="sa-detail-row">
+                                        <strong>Email:</strong> <span id="sa-client-email"></span>
+                                    </div>
+                                </div>
+                                <div class="button-group" style="margin-top: 12px;">
+                                    <button class="btn-secondary" onclick="testServiceAccount()">
+                                        <i class="material-icons">check</i> Test Connection
+                                    </button>
+                                    <button class="btn-secondary" onclick="showUpdateServiceAccount()">
+                                        <i class="material-icons">edit</i> Update
+                                    </button>
+                                    <button class="btn-secondary" style="background: #d63031; color: white;" onclick="deleteServiceAccount()">
+                                        <i class="material-icons">delete</i> Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
                     <div class="sheets-section">
                         <div class="section-header">
                             <h3><i class="material-icons">download</i> Import from Google Sheets</h3>
@@ -1704,6 +1757,59 @@
             color: var(--added-color);
         }
 
+        /* Service Account Card */
+        .service-account-card {
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-top: 12px;
+            background: var(--card-bg);
+        }
+        .sa-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-weight: 500;
+        }
+        .sa-status-badge.not-configured {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .sa-status-badge.configured {
+            background: var(--added-bg);
+            color: var(--added-color);
+        }
+        .sa-status-badge i {
+            font-size: 16px;
+        }
+        .sa-details {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--light-gray);
+            border-radius: var(--radius-sm);
+        }
+        .sa-detail-row {
+            font-size: 13px;
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+        .sa-detail-row:last-child {
+            margin-bottom: 0;
+        }
+        [data-theme="dark"] .service-account-card {
+            background: var(--light-gray);
+            border-color: var(--medium-gray);
+        }
+        [data-theme="dark"] .sa-status-badge.not-configured {
+            background: #5c4d1f;
+            color: #ffc107;
+        }
+        [data-theme="dark"] .sa-details {
+            background: var(--medium-gray);
+        }
         /* Buttons */
         .btn-primary {
             background: var(--primary-color);
@@ -2024,6 +2130,10 @@
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById(btn.dataset.tab).classList.add('active');
+                // Load service account status when switching to sheets tab
+                if (btn.dataset.tab === 'sheets-tab') {
+                    loadServiceAccountStatus();
+                }
             });
         });
 
@@ -2386,6 +2496,92 @@
             }
         }
 
+        // Google Sheets - Service Account
+        async function loadServiceAccountStatus() {
+            try {
+                const response = await fetch('/api/settings/google-service-account');
+                const data = await response.json();
+
+                if (data.configured) {
+                    document.getElementById('sa-not-configured').style.display = 'none';
+                    document.getElementById('sa-configured').style.display = 'block';
+                    document.getElementById('sa-project-id').textContent = data.project_id || 'N/A';
+                    document.getElementById('sa-client-email').textContent = data.client_email || 'N/A';
+                } else {
+                    document.getElementById('sa-not-configured').style.display = 'block';
+                    document.getElementById('sa-configured').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to load service account status:', error);
+            }
+        }
+
+        async function saveServiceAccount() {
+            const json = document.getElementById('service-account-json').value.trim();
+            if (\!json) return alert('Please paste the service account JSON');
+
+            try {
+                const response = await fetch('/api/settings/google-service-account', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({credentials_json: json})
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('Service account saved successfully\!');
+                    document.getElementById('service-account-json').value = '';
+                    loadServiceAccountStatus();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error saving service account: ' + error.message);
+            }
+        }
+
+        async function testServiceAccount() {
+            try {
+                const response = await fetch('/api/settings/google-service-account/test', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('Connection successful\! Your service account is working.');
+                } else {
+                    alert('Connection failed: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error testing connection: ' + error.message);
+            }
+        }
+
+        function showUpdateServiceAccount() {
+            document.getElementById('sa-configured').style.display = 'none';
+            document.getElementById('sa-not-configured').style.display = 'block';
+        }
+
+        async function deleteServiceAccount() {
+            if (\!confirm('Are you sure you want to remove the service account?')) return;
+
+            try {
+                const response = await fetch('/api/settings/google-service-account', {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('Service account removed.');
+                    loadServiceAccountStatus();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error removing service account: ' + error.message);
+            }
+        }
+
         // Google Sheets
         async function fetchSheetInfo() {
             const url = document.getElementById('sheets-url').value;
@@ -2570,6 +2766,10 @@
             setTimeout(() => {
                 const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
                 if (tabBtn) tabBtn.click();
+                // Load service account status when switching to sheets tab
+                if (tabId === 'sheets-tab') {
+                    loadServiceAccountStatus();
+                }
             }, 100);
         }
 

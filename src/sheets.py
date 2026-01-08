@@ -5,6 +5,7 @@ Uses service account authentication to:
 - Import data from Google Sheets
 - Export data back to Google Sheets
 """
+import json
 import os
 import re
 from pathlib import Path
@@ -28,14 +29,35 @@ SCOPES = [
 
 
 def get_credentials():
-    """Get Google service account credentials."""
+    """Get Google service account credentials.
+
+    First tries to load from database, then falls back to file-based credentials.
+    """
     if not GSPREAD_AVAILABLE:
         raise ImportError("gspread is not installed. Run: pip install gspread")
 
+    # Try database first
+    try:
+        from src.models import GoogleServiceAccount
+        from src.database import decrypt_api_key
+
+        sa = GoogleServiceAccount.query.filter_by(is_active=True).first()
+        if sa:
+            json_str = decrypt_api_key(sa.credentials_json_encrypted)
+            creds_info = json.loads(json_str)
+            return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+    except Exception:
+        # Database not available or no credentials stored, fall back to file
+        pass
+
+    # Fall back to file-based credentials
     creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'service_account.json')
 
     if not Path(creds_path).exists():
-        raise FileNotFoundError(f"Service account file not found: {creds_path}")
+        raise FileNotFoundError(
+            "No Google service account configured. "
+            "Please configure it in Settings > Google Sheets tab."
+        )
 
     credentials = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
     return credentials

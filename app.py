@@ -2880,6 +2880,134 @@ def test_api_key(provider):
 
 
 # ============================================
+# GOOGLE SERVICE ACCOUNT ENDPOINTS
+# ============================================
+@app.route('/api/settings/google-service-account', methods=['GET'])
+def get_google_service_account():
+    """Get Google service account status (not the actual credentials)."""
+    try:
+        from src.models import GoogleServiceAccount
+
+        sa = GoogleServiceAccount.query.filter_by(is_active=True).first()
+
+        if sa:
+            return jsonify({
+                'status': 'success',
+                'configured': True,
+                'project_id': sa.project_id,
+                'client_email': sa.client_email,
+                'created_at': sa.created_at.isoformat() if sa.created_at else None
+            })
+        else:
+            return jsonify({
+                'status': 'success',
+                'configured': False
+            })
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/settings/google-service-account', methods=['POST'])
+def save_google_service_account():
+    """Save Google service account credentials."""
+    try:
+        import json
+        from src.models import GoogleServiceAccount, db
+        from src.database import encrypt_api_key
+
+        data = request.get_json()
+        credentials_json = data.get('credentials_json', '').strip()
+
+        if not credentials_json:
+            return jsonify({'status': 'error', 'message': 'Credentials JSON is required'}), 400
+
+        # Validate JSON structure
+        try:
+            creds = json.loads(credentials_json)
+        except json.JSONDecodeError as e:
+            return jsonify({'status': 'error', 'message': f'Invalid JSON: {str(e)}'}), 400
+
+        # Check required fields
+        required_fields = ['type', 'project_id', 'private_key', 'client_email']
+        missing_fields = [f for f in required_fields if f not in creds]
+        if missing_fields:
+            return jsonify({
+                'status': 'error',
+                'message': f'Missing required fields: {", ".join(missing_fields)}'
+            }), 400
+
+        if creds.get('type') != 'service_account':
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid credentials type. Expected "service_account"'
+            }), 400
+
+        # Encrypt and store
+        encrypted_json = encrypt_api_key(credentials_json)
+
+        # Deactivate any existing service accounts
+        GoogleServiceAccount.query.update({GoogleServiceAccount.is_active: False})
+
+        # Create new entry
+        sa = GoogleServiceAccount(
+            credentials_json_encrypted=encrypted_json,
+            project_id=creds.get('project_id'),
+            client_email=creds.get('client_email'),
+            is_active=True
+        )
+        db.session.add(sa)
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Google service account saved successfully',
+            'project_id': sa.project_id,
+            'client_email': sa.client_email
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/settings/google-service-account', methods=['DELETE'])
+def delete_google_service_account():
+    """Delete Google service account credentials."""
+    try:
+        from src.models import GoogleServiceAccount, db
+
+        # Delete all service accounts
+        deleted = GoogleServiceAccount.query.delete()
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': f'Deleted {deleted} service account(s)'
+        })
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/settings/google-service-account/test', methods=['POST'])
+def test_google_service_account():
+    """Test Google service account connection."""
+    try:
+        from src.sheets import test_connection
+
+        result = test_connection()
+        if result['success']:
+            return jsonify({'status': 'success', 'message': result['message']})
+        else:
+            return jsonify({'status': 'error', 'message': result['message']}), 400
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+# ============================================
 # PROJECT MANAGEMENT ENDPOINTS
 # ============================================
 @app.route('/api/projects', methods=['GET'])
