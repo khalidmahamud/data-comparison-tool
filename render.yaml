@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: ihadis-comparison-tool
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 app:app
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: API_KEY_ENCRYPTION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///data/app.db
+      - key: UPLOAD_FOLDER
+        value: uploads
+      - key: MAX_UPLOAD_SIZE_MB
+        value: 50
