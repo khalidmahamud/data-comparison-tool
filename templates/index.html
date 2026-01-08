@@ -28,12 +28,12 @@
 
         <!-- Step Indicator -->
         <div class="setup-stepper" id="setup-stepper">
-            <div class="step {% if not has_files %}active{% elif file_selected and not data %}completed{% else %}completed{% endif %}" data-step="1">
+            <div class="step {% if not has_files %}active{% elif file_selected and not data %}completed{% else %}completed{% endif %}" data-step="1" {% if has_files %}onclick="navigateToStep(1)" title="Back to file list"{% endif %}>
                 <span class="step-number">{% if has_files %}<i class="material-icons" style="font-size:16px">check</i>{% else %}1{% endif %}</span>
                 <span class="step-label">Upload</span>
             </div>
             <div class="step-connector {% if file_selected %}active{% endif %}"></div>
-            <div class="step {% if file_selected and not data %}active{% elif file_selected and data %}completed{% endif %}" data-step="2">
+            <div class="step {% if file_selected and not data %}active{% elif file_selected and data %}completed{% endif %}" data-step="2" {% if file_selected and data %}onclick="navigateToStep(2)" title="Back to configuration"{% endif %}>
                 <span class="step-number">{% if file_selected and data %}<i class="material-icons" style="font-size:16px">check</i>{% else %}2{% endif %}</span>
                 <span class="step-label">Configure</span>
             </div>
@@ -133,6 +133,9 @@
                         <button class="btn-select-file" onclick="selectAndLoadFile('{{ file.filename }}')" title="Select this file">
                             <i class="material-icons">play_arrow</i> Open
                         </button>
+                        <button class="btn-configure-file" onclick="configureFile('{{ file.filename }}')" title="Configure columns">
+                            <i class="material-icons">settings</i>
+                        </button>
                         <button class="btn-delete-file" onclick="deleteFileFromList('{{ file.filename }}')" title="Delete file">
                             <i class="material-icons">delete</i>
                         </button>
@@ -145,6 +148,9 @@
         {% elif file_selected and data %}
         <!-- ========== DATA VIEW: File selected and data available ========== -->
         <div class="controls">
+            <button class="btn-back-step" onclick="deselectCurrentFile()" title="Back to file list">
+                <i class="material-icons">arrow_back</i> Back
+            </button>
             <div class="current-file-info">
                 <i class="material-icons">description</i>
                 <span class="current-file-name">{{ current_file_name }}</span>
@@ -356,6 +362,9 @@
         <div class="inline-config-view" id="inline-config-view">
             <!-- File Header -->
             <div class="config-file-header">
+                <button class="btn-back-step" onclick="deselectCurrentFile()" title="Back to file list">
+                    <i class="material-icons">arrow_back</i> Back
+                </button>
                 <div class="config-file-info">
                     <i class="material-icons">description</i>
                     <span class="config-file-name">{{ current_file_name or 'No file selected' }}</span>
@@ -1443,6 +1452,10 @@
             background: rgba(245, 101, 101, 0.1);
             color: var(--error-color);
         }
+        .file-btn.configure:hover {
+            background: rgba(90, 103, 216, 0.1);
+            color: var(--primary-color);
+        }
         .file-item.active {
             background: rgba(72, 187, 120, 0.08);
             border-left: 3px solid var(--success-color);
@@ -1496,6 +1509,8 @@
             background-position: right 12px center;
             background-size: 18px;
             transition: border-color 0.2s, box-shadow 0.2s;
+            border-image: none;
+            outline: none;
         }
         .column-select:hover {
             border-color: var(--primary-color);
@@ -1517,6 +1532,7 @@
             border-radius: var(--radius);
             padding: 16px;
             transition: all 0.2s;
+            border-image: none;
         }
         .column-card:hover {
             border-color: var(--primary-color);
@@ -1524,7 +1540,8 @@
         }
         .column-card.optional {
             background: var(--card-bg);
-            border-style: dashed;
+            border: 1px dashed var(--medium-gray);
+            border-image: none;
         }
         .column-card-header {
             display: flex;
@@ -2269,6 +2286,9 @@
                                 <button class="file-btn load ${isActive ? 'active-btn' : ''}" onclick="selectFile('${f.filename}')" title="${isActive ? 'Currently active' : 'Load this file'}">
                                     <i class="material-icons">${isActive ? 'check' : 'play_arrow'}</i>
                                 </button>
+                                <button class="file-btn configure" onclick="configureFile('${f.filename}')" title="Configure columns">
+                                    <i class="material-icons">settings</i>
+                                </button>
                                 <button class="file-btn delete" onclick="deleteFile('${f.filename}')" title="Delete file">
                                     <i class="material-icons">delete</i>
                                 </button>
@@ -2347,6 +2367,36 @@
                 }
             } catch (error) {
                 alert('Failed to delete file: ' + error.message);
+            }
+        }
+
+        // Configure file - open settings modal with column configuration
+        async function configureFile(filename) {
+            try {
+                // First select the file via API
+                const response = await fetch('/api/files/select', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    // Update active file
+                    currentActiveFile = filename;
+                    // Open the settings modal
+                    openAdvancedSettings();
+                    // Switch to upload tab (which has column config)
+                    switchToTab('upload-tab');
+                    // Load column configuration for this file
+                    loadFileColumnsConfig(filename);
+                    // Refresh the file list to show the active file
+                    loadUploadedFiles();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to configure file: ' + error.message);
             }
         }
 
@@ -2958,6 +3008,14 @@
             }
         }
 
+        // Navigate to a specific step (for clickable step indicators)
+        function navigateToStep(step) {
+            if (step === 1 || step === 2) {
+                // Both go back to file list - user can then select/configure again
+                deselectCurrentFile();
+            }
+        }
+
         // Initialize main page upload handlers on DOM load
         document.addEventListener('DOMContentLoaded', function() {
             setupMainUploadDropzone();
@@ -3202,6 +3260,7 @@
             if (!validateInlineConfig()) return;
 
             const btn = document.getElementById('btn-start-comparing');
+            const originalBtnContent = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="material-icons spinning">sync</i> Saving...';
 
@@ -3210,6 +3269,19 @@
             const secondaryText = document.getElementById('inline-col-secondary').value;
             const arabicText = document.getElementById('inline-col-arabic').value;
             const idColumn = document.getElementById('inline-col-id').value;
+
+            // Helper function to reset button state
+            function resetButton(errorMsg) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons">play_arrow</i> Start Comparing';
+                if (errorMsg) {
+                    alert(errorMsg);
+                }
+            }
+
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
             try {
                 const response = await fetch('/api/settings/columns', {
@@ -3223,22 +3295,32 @@
                             arabic_text: arabicText || null,
                             number: idColumn || null
                         }
-                    })
+                    }),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    resetButton('Server error: ' + response.status + ' ' + response.statusText);
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'success') {
                     // Reload to show data view
                     window.location.reload();
                 } else {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="material-icons">play_arrow</i> Start Comparing';
-                    alert('Error: ' + data.message);
+                    resetButton('Error: ' + (data.message || 'Unknown error occurred'));
                 }
             } catch (error) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="material-icons">play_arrow</i> Start Comparing';
-                alert('Failed to save configuration: ' + error.message);
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    resetButton('Request timed out. Please check your connection and try again.');
+                } else {
+                    resetButton('Failed to save configuration: ' + error.message);
+                }
             }
         }
     </script>

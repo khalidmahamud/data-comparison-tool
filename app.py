@@ -363,6 +363,7 @@ def reload_config(config_path: str = 'config_flash.yaml'):
         config = load_config(config_path)
     except Exception as e:
         print(f"Error loading configuration: {e}")
+        raise  # Re-raise to let caller handle the error
 
 def get_input_file_path():
     """Get the currently selected file path, or None if no file is selected."""

@@ -91,6 +91,11 @@
   }
 }
 
+.spinning {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
 @keyframes tick-animation {
   0% {
     transform: scale(1);
@@ -2585,6 +2590,24 @@ html {
   color: white;
 }
 
+.btn-configure-file {
+  background: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.btn-configure-file:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
 /* ========================================
    CONFIG/ERROR VIEW STYLES
    ======================================== */
@@ -3232,6 +3255,20 @@ button.loading::after {
   color: white;
 }
 
+/* Clickable completed steps */
+.setup-stepper .step.completed {
+  cursor: pointer;
+}
+
+.setup-stepper .step.completed:hover .step-number {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.25);
+}
+
+.setup-stepper .step.completed:hover .step-label {
+  text-decoration: underline;
+}
+
 .setup-stepper .step-connector {
   width: 60px;
   height: 2px;
@@ -3247,6 +3284,19 @@ button.loading::after {
 /* ========================================
    INLINE COLUMN CONFIG STYLES
    ======================================== */
+/* Reset any potential decorative pseudo-elements */
+.inline-config-view *::before,
+.inline-config-view *::after,
+.config-sheet-select *::before,
+.config-sheet-select *::after,
+.column-card-inline::before,
+.column-card-inline::after,
+.column-mapping-inline *::before,
+.column-mapping-inline *::after {
+  content: none;
+  display: none;
+}
+
 .inline-config-view {
   max-width: 800px;
   margin: 0 auto;
@@ -3280,8 +3330,46 @@ button.loading::after {
   color: var(--text-color);
 }
 
+/* Back button in config header */
+.btn-back-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-back-step:hover {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--primary-color);
+}
+
+.btn-back-step i {
+  font-size: 18px;
+}
+
 .config-sheet-select {
   margin-bottom: 24px;
+  position: relative;
+  background: transparent;
+  border: none;
+}
+
+/* Reset any validation decorations */
+.config-sheet-select select:valid,
+.config-sheet-select select:invalid,
+.column-select:valid,
+.column-select:invalid {
+  box-shadow: none !important;
+  border-color: var(--medium-gray) !important;
 }
 
 .config-sheet-select label {
@@ -3292,22 +3380,50 @@ button.loading::after {
   margin-bottom: 8px;
 }
 
-.config-sheet-select select {
+.config-sheet-select select,
+.column-select {
   width: 100%;
   max-width: 300px;
   padding: 12px 16px;
-  border: 2px solid var(--medium-gray);
+  border: 2px solid var(--medium-gray) !important;
+  border-style: solid !important;
   border-radius: var(--radius);
   font-size: 14px;
-  background: var(--card-bg);
+  background: var(--card-bg) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 16px !important;
   color: var(--text-color);
   cursor: pointer;
   transition: border-color 0.2s ease;
+  border-image: none !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  padding-right: 40px;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  filter: none !important;
+  clip-path: none !important;
+  mask: none !important;
+  -webkit-mask: none !important;
 }
 
-.config-sheet-select select:focus {
+.config-sheet-select select:focus,
+.column-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--primary-color) !important;
+}
+
+/* Reset any pseudo-elements on select */
+.column-select::before,
+.column-select::after,
+.config-sheet-select select::before,
+.config-sheet-select select::after {
+  content: none !important;
+  display: none !important;
 }
 
 /* Column Mapping Grid */
@@ -3316,6 +3432,9 @@ button.loading::after {
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-bottom: 24px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 @media (max-width: 600px) {
@@ -3330,6 +3449,10 @@ button.loading::after {
   border-radius: var(--radius-lg);
   padding: 20px;
   transition: all 0.2s ease;
+  border-image: none;
+  box-decoration-break: clone;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .column-card-inline:hover {
@@ -3352,7 +3475,8 @@ button.loading::after {
 }
 
 .column-card-inline.optional {
-  border-style: dashed;
+  border: 2px dashed var(--medium-gray);
+  border-image: none;
   background: var(--light-gray);
 }
 
@@ -3409,6 +3533,8 @@ button.loading::after {
   color: var(--text-color);
   cursor: pointer;
   margin-bottom: 12px;
+  border-image: none;
+  outline: none;
 }
 
 .column-card-inline select:focus {
@@ -3422,6 +3548,9 @@ button.loading::after {
   border-radius: var(--radius);
   padding: 12px;
   min-height: 80px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .column-preview-label {
